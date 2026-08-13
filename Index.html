@@ -1,0 +1,2639 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>ZedTill</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0f1613">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="ZedTill">
+<style>
+  :root{
+    --bg:#0f1613;
+    --panel:#161f1b;
+    --panel2:#1c2621;
+    --line:#2a3733;
+    --text:#e9efe9;
+    --sub:#8fa39a;
+    --accent:#3ecf8e;
+    --accent-dim:#1f6b4a;
+    --warn:#e2b93b;
+    --danger:#d9614f;
+    --mono: 'SF Mono', 'JetBrains Mono', Consolas, monospace;
+  }
+  *{box-sizing:border-box;}
+  body.theme-light{
+    --bg:#f4f6f4; --panel:#ffffff; --panel2:#eef1ee; --line:#d7dcd6;
+    --text:#182018; --sub:#5b675f; --accent:#1f8f5c; --accent-dim:#a9d9c2;
+    --warn:#a5720a; --danger:#b8382b;
+  }
+  body.theme-contrast{
+    --bg:#000000; --panel:#0a0a0a; --panel2:#141414; --line:#3a3a3a;
+    --text:#ffffff; --sub:#c9c9c9; --accent:#ffd400; --accent-dim:#8a7300;
+    --warn:#ffd400; --danger:#ff4d4d;
+  }
+  body.theme-contrast .checkout-btn, body.theme-contrast .add-item-btn, body.theme-contrast .scan-row button{color:#000;}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family: -apple-system, Segoe UI, Roboto, sans-serif;
+    height:100vh; display:flex; flex-direction:column;
+  }
+
+  /* LOGIN OVERLAY */
+  .login-screen {
+    position: fixed; inset: 0; background: var(--bg); z-index: 1000;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 20px;
+  }
+  .login-card {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+    padding: 28px; width: 100%; max-width: 340px; text-align: center;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+  }
+  .login-card h2 { margin: 0 0 8px; font-size: 20px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--accent); }
+  .login-card p { font-size: 13px; color: var(--sub); margin-bottom: 20px; }
+  .login-card input {
+    width: 100%; padding: 14px; text-align: center; font-size: 24px; font-family: var(--mono);
+    letter-spacing: 0.3em; background: var(--panel2); border: 1px solid var(--line);
+    border-radius: 8px; color: var(--text); margin-bottom: 16px;
+  }
+  .login-card input:focus { outline: none; border-color: var(--accent); }
+  .login-card button {
+    width: 100%; padding: 14px; background: var(--accent); border: none; border-radius: 8px;
+    color: #04140c; font-weight: 700; font-size: 16px; cursor: pointer;
+  }
+
+  header{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:14px 20px; border-bottom:1px solid var(--line); background:var(--panel);
+  }
+  header .left{display:flex; align-items:center; gap:14px;}
+  .menu-btn{
+    width:38px; height:38px; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:4px; background:var(--panel2); border:1px solid var(--line); border-radius:6px; cursor:pointer;
+  }
+  .menu-btn span{width:16px; height:2px; background:var(--sub); border-radius:2px;}
+  header h1{font-size:15px; letter-spacing:0.08em; text-transform:uppercase; margin:0; color:var(--sub); font-weight:600; cursor:pointer;}
+  header .clock{font-family:var(--mono); font-size:13px; color:var(--sub);}
+  .right-status{display:flex; align-items:center; gap:8px;}
+  .net-dot{width:8px; height:8px; border-radius:50%; background:var(--accent);}
+  .net-dot.off{background:var(--danger);}
+  .net-label{font-size:11px; color:var(--sub); text-transform:uppercase; letter-spacing:0.04em;}
+  .lock-btn{background:var(--panel2); border:1px solid var(--line); color:var(--sub); padding:6px 10px; border-radius:4px; cursor:pointer; font-size:11px; font-weight:600;}
+  .seller-tag{font-size:11px; color:var(--accent); font-weight:700; text-transform:uppercase; letter-spacing:0.04em;}
+
+  .overlay{position:fixed; inset:0; background:rgba(0,0,0,0.5); opacity:0; pointer-events:none; transition:opacity .2s; z-index:20;}
+  .overlay.show{opacity:1; pointer-events:auto;}
+  .drawer{
+    position:fixed; top:0; left:0; bottom:0; width:230px; background:var(--panel);
+    border-right:1px solid var(--line); transform:translateX(-100%); transition:transform .22s ease; z-index:21;
+    display:flex; flex-direction:column; padding-top:16px;
+  }
+  .drawer.show{transform:translateX(0);}
+  .drawer-title{padding:8px 20px 16px; font-size:11px; text-transform:uppercase; letter-spacing:0.08em; color:var(--sub); border-bottom:1px solid var(--line); margin-bottom:8px;}
+  .drawer button{
+    display:flex; align-items:center; gap:10px; text-align:left; padding:13px 20px; background:none; border:none;
+    color:var(--text); font-size:14px; font-weight:600; cursor:pointer; border-left:3px solid transparent;
+  }
+  .drawer button:hover{background:var(--panel2);}
+  .drawer button.active{border-left-color:var(--accent); color:var(--accent); background:var(--panel2);}
+  .drawer .icon{
+    width:22px; height:22px; display:flex; align-items:center; justify-content:center;
+    background:var(--panel2); border:1px solid var(--line); border-radius:4px;
+    font-size:11px; font-weight:700; color:var(--sub);
+  }
+  .drawer button.active .icon{border-color:var(--accent); color:var(--accent);}
+  main{flex:1; overflow:auto; padding:16px 20px; scrollbar-width:none;}
+  main::-webkit-scrollbar{display:none;}
+  .view{display:none;}
+  .view.active{display:block;}
+
+  /* SELL VIEW */
+  .scan-row{display:flex; flex-direction:column; gap:10px; margin-bottom:14px;}
+  .scan-row input{
+    padding:16px; font-size:17px; font-family:var(--mono);
+    background:var(--panel2); border:1px solid var(--line); border-radius:6px; color:var(--text);
+  }
+  .scan-row input:focus{outline:none; border-color:var(--accent);}
+  .scan-row button{
+    width:100%; padding:20px; background:var(--accent); color:#04140c; border:none; border-radius:8px;
+    font-weight:800; cursor:pointer; font-size:19px; letter-spacing:0.02em;
+  }
+  .camera-btn{
+    background:var(--panel2) !important; color:var(--text) !important; border:1px solid var(--line) !important;
+    font-weight:700 !important; font-size:15px !important; padding:14px !important;
+  }
+  .quick-select-section{display:flex; flex-direction:column; gap:6px; margin-bottom:16px;}
+  .quick-select-title{font-size:12px; font-weight:600; color:var(--sub); text-transform:lowercase; letter-spacing:0.02em;}
+  .quick-select-chips{display:flex; gap:8px; overflow-x:auto; padding-bottom:4px; scrollbar-width:none;}
+  .quick-select-chips::-webkit-scrollbar{display:none;}
+  .quick-chip{
+    padding:10px 16px; background:var(--panel2); border:1px solid var(--line); border-radius:6px;
+    font-size:13px; font-weight:600; color:var(--text); cursor:pointer; white-space:nowrap; flex-shrink:0;
+  }
+  .quick-chip:hover{border-color:var(--accent); color:var(--accent);}
+  .quick-chip.out{opacity:0.4; text-decoration:line-through;}
+  .held-chip{display:flex; align-items:center; gap:6px; padding-right:6px;}
+  .held-cancel{background:none; border:none; color:var(--danger); cursor:pointer; font-size:12px; font-weight:700; padding:2px 4px;}
+  .chip-stock{color:var(--sub); font-weight:400; font-size:11px;}
+  .scanner-overlay{
+    position:fixed; inset:0; background:rgba(0,0,0,0.92); display:none;
+    align-items:center; justify-content:center; z-index:50;
+  }
+  .scanner-overlay.show{display:flex;}
+  .scanner-box{width:92%; max-width:420px;}
+  .scanner-header{display:flex; justify-content:space-between; align-items:center; color:var(--text); font-size:14px; font-weight:600; margin-bottom:10px;}
+  .scanner-close{background:var(--panel2); border:1px solid var(--line); color:var(--text); padding:8px 14px; border-radius:6px; cursor:pointer; font-weight:600;}
+  #scannerRegion{width:100%; border-radius:8px; overflow:hidden; background:#000;}
+  .scanner-hint{color:var(--sub); font-size:13px; text-align:center; margin-top:10px;}
+  .credit{
+    position:fixed; bottom:4px; right:8px; font-size:7px; color:var(--sub);
+    opacity:0.5; z-index:5; pointer-events:none; text-align:right; line-height:1.3;
+  }
+  table{width:100%; border-collapse:collapse; font-size:14px;}
+  th{text-align:left; color:var(--sub); font-size:11px; text-transform:uppercase; letter-spacing:0.05em; padding:8px 6px; border-bottom:1px solid var(--line);}
+  td{padding:10px 6px; border-bottom:1px solid var(--line);}
+  td.num, th.num{text-align:right; font-family:var(--mono);}
+  .rm{background:none;border:none;color:var(--danger);cursor:pointer;font-size:13px;margin-left:4px;}
+  .edt{background:none;border:none;color:var(--warn);cursor:pointer;font-size:13px;}
+  .edt.pinned{color:var(--accent); font-weight:700;}
+  .dept-move-select{
+    background:var(--panel2); border:1px solid var(--line); color:var(--sub);
+    font-size:11px; padding:4px 6px; border-radius:4px; max-width:100px;
+  }
+  .quick-select-hint{font-size:11px; color:var(--sub); align-self:center; white-space:nowrap; flex-shrink:0;}
+  .cart-empty{color:var(--sub); font-size:13px; padding:20px 6px; text-align:center;}
+  .totals{margin-top:14px; padding:14px; background:var(--panel2); border-radius:8px; border:1px solid var(--line);}
+  .totals .row{display:flex; justify-content:space-between; padding:4px 0; font-size:14px; color:var(--sub);}
+  .totals .row.grand{font-size:22px; color:var(--text); font-weight:700; font-family:var(--mono); border-top:1px solid var(--line); margin-top:6px; padding-top:10px;}
+  .paytype{display:flex; gap:8px; margin:14px 0;}
+  .paytype button{flex:1; padding:12px; background:var(--panel2); border:1px solid var(--line); border-radius:6px; color:var(--sub); font-weight:600; cursor:pointer;}
+  .paytype button.sel{border-color:var(--accent); color:var(--accent); background:rgba(62,207,142,0.08);}
+  .special-btn.sel{border-color:var(--warn); color:var(--warn); background:rgba(226,185,59,0.1);}
+  .special-count{font-size:12px; color:var(--sub); text-align:center; margin-bottom:8px;}
+  .special-count.limit{color:var(--danger); font-weight:700;}
+  .special-card{background:var(--panel2); border:1px solid var(--line); border-radius:8px; padding:12px 14px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;}
+  .special-card .info .name{font-weight:700; font-size:14px;}
+  .aging-tag{font-size:10px; font-weight:600; color:var(--sub); background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:2px 8px; margin-left:6px; text-transform:uppercase; letter-spacing:0.03em;}
+  .aging-tag.aging-overdue{color:var(--danger); border-color:var(--danger);}
+  .special-card .info .meta{font-size:12px; color:var(--sub); margin-top:2px;}
+  .special-card button{background:var(--accent); border:none; border-radius:6px; color:#04140c; font-weight:700; padding:8px 14px; cursor:pointer; font-size:12px;}
+  .special-empty{color:var(--sub); font-size:13px; text-align:center; padding:30px 0;}
+  .tender-row{background:var(--panel2); border:1px solid var(--line); border-radius:8px; padding:14px; margin-bottom:14px;}
+  .tender-label{display:block; font-size:11px; text-transform:uppercase; color:var(--sub); letter-spacing:0.05em; margin-bottom:8px;}
+  .tender-row input{width:100%; padding:14px; font-size:20px; font-family:var(--mono); background:var(--bg); border:1px solid var(--line); border-radius:6px; color:var(--text);}
+  .tender-row input:focus{outline:none; border-color:var(--accent);}
+  .change-due{margin-top:10px; font-family:var(--mono); font-size:22px; font-weight:700; text-align:center; padding:10px; border-radius:6px;}
+  .change-due.give{background:rgba(62,207,142,0.1); color:var(--accent); border:1px solid var(--accent-dim);}
+  .change-due.short{background:rgba(217,97,79,0.1); color:var(--danger); border:1px solid var(--danger);}
+  .checkout-btn{width:100%; padding:16px; background:var(--accent); color:#04140c; border:none; border-radius:8px; font-size:16px; font-weight:700; cursor:pointer; letter-spacing:0.02em;}
+  .checkout-btn:disabled{background:var(--panel2); color:var(--sub); cursor:not-allowed;}
+  .toast{position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:var(--accent); color:#04140c; padding:10px 18px; border-radius:6px; font-weight:600; font-size:13px; opacity:0; transition:opacity .25s; pointer-events:none; z-index:999;}
+  .toast.show{opacity:1;}
+
+  /* INVENTORY VIEW */
+  .inv-add{display:grid; grid-template-columns: 1fr 1.5fr 70px 70px 60px 90px; gap:8px; margin-bottom:16px;}
+  .inv-add input, .inv-add select{padding:10px; background:var(--panel2); border:1px solid var(--line); border-radius:6px; color:var(--text); font-size:13px;}
+  .inv-add button{background:var(--accent); border:none; border-radius:6px; color:#04140c; font-weight:700; cursor:pointer;}
+  .barcode-field{display:flex; gap:4px;}
+  .barcode-field input{flex:1; min-width:0;}
+  .camera-btn-small{
+    padding:0 8px !important; font-size:11px !important; white-space:nowrap; background:var(--panel2) !important;
+    color:var(--text) !important; border:1px solid var(--line) !important; font-weight:600 !important;
+  }
+  .add-item-btn{
+    width:100%; padding:20px; background:var(--accent); border:none; border-radius:8px;
+    color:#04140c; font-weight:800; font-size:18px; cursor:pointer; margin-bottom:16px; letter-spacing:0.02em;
+  }
+  .low{color:var(--warn); font-weight:700;}
+  .out{color:var(--danger); font-weight:700;}
+
+  /* SUMMARY VIEW */
+  .cards{display:grid; grid-template-columns:repeat(2,1fr); gap:10px; margin-bottom:20px;}
+  .section-title{font-size:11px; text-transform:uppercase; letter-spacing:0.05em; color:var(--sub); margin:6px 0 10px;}
+  .dept-row{display:flex; align-items:center; gap:10px; margin-bottom:10px;}
+  .dept-label{width:70px; font-size:13px; font-weight:600; flex-shrink:0;}
+  .dept-bar-track{flex:1; height:10px; background:var(--panel2); border-radius:5px; overflow:hidden; border:1px solid var(--line);}
+  .dept-bar-fill{height:100%; background:var(--accent); border-radius:5px;}
+  .dept-vals{width:110px; text-align:right; font-family:var(--mono); font-size:12px; flex-shrink:0;}
+  .dept-pct{color:var(--sub);}
+  .card{background:var(--panel2); border:1px solid var(--line); border-radius:8px; padding:14px;}
+  .card .label{font-size:11px; text-transform:uppercase; color:var(--sub); letter-spacing:0.05em;}
+  .card .val{font-family:var(--mono); font-size:22px; margin-top:6px; font-weight:700;}
+  .count-input{display:flex; gap:8px; align-items:center; margin:16px 0;}
+  .count-input input{flex:1; padding:12px; background:var(--panel2); border:1px solid var(--line); border-radius:6px; color:var(--text); font-family:var(--mono); font-size:16px;}
+  .variance{padding:14px; border-radius:8px; font-family:var(--mono); font-size:18px; font-weight:700; text-align:center; margin-top:10px;}
+  .variance.ok{background:rgba(62,207,142,0.1); color:var(--accent); border:1px solid var(--accent-dim);}
+  .variance.bad{background:rgba(217,97,79,0.1); color:var(--danger); border:1px solid var(--danger);}
+  .sync-btn{width:100%; margin-top:18px; padding:14px; background:var(--panel2); border:1px dashed var(--sub); border-radius:8px; color:var(--sub); font-weight:600; cursor:pointer;}
+  .hint{font-size:12px; color:var(--sub); margin-top:6px; line-height:1.5;}
+
+  /* SETTINGS */
+  .settings-group{margin-bottom:18px;}
+  .settings-label{font-size:11px; text-transform:uppercase; color:var(--sub); letter-spacing:0.05em; margin-bottom:6px;}
+  .settings-input{width:100%; padding:12px; background:var(--panel2); border:1px solid var(--line); border-radius:6px; color:var(--text); font-size:14px;}
+  .settings-input:focus{outline:none; border-color:var(--accent);}
+  .settings-divider{height:1px; background:var(--line); margin:20px 0;}
+  .settings-btn{width:100%; padding:12px; background:var(--panel2); border:1px solid var(--line); border-radius:6px; color:var(--text); font-weight:600; cursor:pointer; margin-top:4px;}
+  .settings-btn.primary{background:var(--accent); color:#04140c; border:none; margin-top:8px; padding:14px;}
+  .conn-status{display:flex; align-items:center; gap:8px; font-size:13px; color:var(--sub); margin-bottom:10px;}
+  .conn-status .dot{width:8px; height:8px; border-radius:50%; background:var(--danger); display:inline-block;}
+  .conn-status .dot.connected{background:var(--accent);}
+  .chip-row{display:flex; gap:8px; flex-wrap:wrap;}
+  .chip{padding:8px 14px; border-radius:20px; background:var(--panel2); border:1px solid var(--line); color:var(--sub); font-size:13px; font-weight:600;}
+  .theme-chip{cursor:pointer;}
+  .dept-chip{display:flex; align-items:center; gap:6px; background:var(--panel2); border:1px solid var(--line); border-radius:20px; padding:6px 8px 6px 14px; font-size:13px; font-weight:600; color:var(--text);}
+  .dept-chip .dept-remove{background:none; border:none; color:var(--sub); cursor:pointer; font-size:13px; width:20px; height:20px; display:flex; align-items:center; justify-content:center; border-radius:50%;}
+  .dept-chip .dept-remove:hover{background:var(--line); color:var(--danger);}
+  .dept-chip.locked{opacity:0.6;}
+  .add-dept-row{display:flex; gap:8px; margin-top:10px;}
+  .add-dept-row .settings-input{flex:1;}
+  .add-dept-row .settings-btn{width:auto; padding:0 18px; margin-top:0;}
+  .seller-row{display:flex; justify-content:space-between; align-items:center; background:var(--panel2); border:1px solid var(--line); border-radius:8px; padding:10px 14px; margin-bottom:8px;}
+  .seller-row .name{font-weight:700; font-size:14px;}
+  .seller-row .pin{font-family:var(--mono); font-size:12px; color:var(--sub); margin-left:8px;}
+  .seller-row button{background:none; border:none; color:var(--danger); cursor:pointer; font-size:13px; font-weight:700;}
+  .chip.on{background:rgba(62,207,142,0.1); border-color:var(--accent-dim); color:var(--accent);}
+  .sync-box{margin-top:18px; padding:14px; background:var(--panel2); border:1px dashed var(--sub); border-radius:8px;}
+  .sync-row{display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; font-size:13px; color:var(--sub);}
+  .mono-val{font-family:var(--mono); font-size:16px; font-weight:700; color:var(--warn);}
+</style>
+</head>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script src="https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://unpkg.com/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+<body>
+
+<!-- LOGIN GATE -->
+<div class="login-screen" id="loginScreen">
+  <div class="login-card">
+    <h2>ZedTill Terminal</h2>
+    <p>Enter your PIN to sign in</p>
+    <input type="password" id="pinInput" maxlength="6" placeholder="••••" autofocus onkeydown="if(event.key==='Enter') verifyPin()">
+    <button onclick="verifyPin()">Sign In</button>
+  </div>
+</div>
+
+<header>
+  <div class="left">
+    <button class="menu-btn" id="menuBtn" onclick="toggleDrawer(true)"><span></span><span></span><span></span></button>
+    <h1 onclick="goTo('sell')">ZedTill</h1>
+  </div>
+  <div class="right-status">
+    <span class="seller-tag" id="sellerTag"></span>
+    <button class="lock-btn" onclick="lockTerminal()">Lock</button>
+    <span class="net-dot" id="netDot"></span>
+    <span class="net-label" id="netLabel">Online</span>
+    <span class="clock" id="clock">--:--:--</span>
+  </div>
+</header>
+
+<div class="overlay" id="overlay" onclick="toggleDrawer(false)"></div>
+<div class="drawer" id="drawer">
+  <div class="drawer-title">Menu</div>
+  <button class="nav-item active" data-view="sell" onclick="goTo('sell')"><span class="icon">S</span> Sell</button>
+  <button class="nav-item" data-view="inventory" onclick="goTo('inventory')"><span class="icon">I</span> Inventory</button>
+  <button class="nav-item" data-view="summary" onclick="goTo('summary')"><span class="icon">D</span> Day Summary</button>
+  <button class="nav-item" data-view="clearspecial" onclick="goTo('clearspecial')"><span class="icon">C</span> Clear Special</button>
+  <button class="nav-item" data-view="refunds" onclick="goTo('refunds')"><span class="icon">R</span> Refunds</button>
+  <button class="nav-item" data-view="settings" onclick="goTo('settings')"><span class="icon">G</span> Settings</button>
+</div>
+
+<main>
+
+  <!-- SELL -->
+  <div class="view active" id="view-sell">
+    <div class="scan-row">
+      <input id="scanInput" placeholder="Scan any code or type item name, then Enter" autofocus>
+      <button onclick="handleScan()">Add</button>
+      <button class="camera-btn" onclick="openScanner('sell')">Scan with Camera</button>
+    </div>
+    <div class="quick-select-section">
+      <div class="quick-select-title">Quick select</div>
+      <div class="quick-select-chips" id="quickSelectChips"></div>
+    </div>
+    <div class="quick-select-section" id="heldSalesSection" style="display:none;">
+      <div class="quick-select-title">Held sales, tap to resume</div>
+      <div class="quick-select-chips" id="heldSalesChips"></div>
+    </div>
+
+    <table>
+      <thead><tr><th>Item</th><th class="num">Qty</th><th class="num">Price</th><th class="num">Total</th><th></th></tr></thead>
+      <tbody id="cartBody"></tbody>
+    </table>
+    <div id="cartEmpty" class="cart-empty">Cart is empty. Scan an item to begin</div>
+
+    <div class="totals">
+      <div class="row"><span>Items</span><span id="totItems">0</span></div>
+      <div class="row grand"><span>Total</span><span id="totAmount">K0.00</span></div>
+    </div>
+
+    <div class="paytype">
+      <button class="pay-btn sel" data-pay="Cash" onclick="setPay('Cash')">Cash</button>
+      <button class="pay-btn" data-pay="Mobile Money" onclick="setPay('Mobile Money')">Mobile Money</button>
+      <button class="pay-btn special-btn" data-pay="Special" onclick="setPay('Special')">Special</button>
+    </div>
+    <div class="special-count" id="specialCount"></div>
+
+    <div class="tender-row" id="tenderRow" style="display:none;">
+      <label class="tender-label">Cash Received</label>
+      <input id="cashTendered" type="number" placeholder="e.g. 50" oninput="calcChange()">
+      <div id="changeDue" class="change-due"></div>
+    </div>
+
+    <div class="tender-row" id="specialRow" style="display:none;">
+      <label class="tender-label">Buyer Name</label>
+      <input id="specialName" placeholder="Full name" oninput="validateSpecial()">
+      <label class="tender-label" style="margin-top:10px;">Buyer Phone</label>
+      <input id="specialPhone" placeholder="e.g. 0977123456" oninput="validateSpecial()">
+    </div>
+
+    <div style="display:flex; gap:8px;">
+      <button class="camera-btn" style="flex:1;" onclick="holdSale()">Hold</button>
+      <button class="checkout-btn" id="checkoutBtn" style="flex:2;" onclick="checkout()" disabled>Checkout</button>
+    </div>
+  </div>
+
+  <!-- INVENTORY -->
+  <div class="view" id="view-inventory">
+    <div class="inv-add">
+      <input id="newName" placeholder="Item name">
+      <div class="barcode-field">
+        <input id="newCodes" placeholder="Codes/SKUs (comma-separated)">
+        <button type="button" class="camera-btn-small" onclick="openScanner('inventory')">Scan</button>
+      </div>
+      <input id="newCost" placeholder="Cost" type="number">
+      <input id="newPrice" placeholder="Price" type="number">
+      <input id="newQty" placeholder="Qty" type="number">
+      <select id="newDept"></select>
+    </div>
+    <button class="add-item-btn" onclick="addItem()">Add Item to Inventory</button>
+    <button class="settings-btn" onclick="printMissingLabels()" style="margin-bottom:14px;">Print labels for items without barcodes</button>
+    <div class="hint" style="margin-top:-8px; margin-bottom:14px;">Items with no code get a unique ZedTill barcode generated and saved automatically when you print. Use the Label button on any row to print one item.</div>
+    <table>
+      <thead><tr><th>Item</th><th>Dept</th><th>Codes / SKUs</th><th class="num">Cost</th><th class="num">Price</th><th class="num">Stock</th><th>Actions</th></tr></thead>
+      <tbody id="invBody"></tbody>
+    </table>
+  </div>
+
+  <!-- SUMMARY -->
+  <div class="view" id="view-summary">
+    <div class="cards">
+      <div class="card"><div class="label">Sales Today</div><div class="val" id="sumSales">K0.00</div></div>
+      <div class="card"><div class="label">Transactions</div><div class="val" id="sumTx">0</div></div>
+      <div class="card"><div class="label">Opening Stock Value</div><div class="val" id="sumOpen">K0.00</div></div>
+      <div class="card"><div class="label">Closing Stock Value</div><div class="val" id="sumClose">K0.00</div></div>
+    </div>
+    <div class="cards" style="grid-template-columns:1fr 1fr;">
+      <div class="card"><div class="label">Opening Cash Float</div><div class="val" id="sumFloat">K0.00</div></div>
+      <div class="card"><div class="label">Outstanding Specials (uncollected credit)</div><div class="val" id="sumOutstanding" style="color:var(--warn);">K0.00</div></div>
+    </div>
+    <div class="hint" style="margin-top:-10px; margin-bottom:16px;">
+      Sales Today includes credit sales that haven't been paid back yet. The outstanding figure above is how much of that isn't actually in the till as cash.
+    </div>
+    <div class="hint" style="margin-bottom:16px;">
+      Opening Stock is set once, the first time the app loads each day, and stays fixed after that so it can be compared against the day's closing figure. If you've added or removed inventory since then and want it to reflect right now instead, <button class="rm" style="color:var(--accent); font-size:12px; font-weight:700;" onclick="recalculateOpeningStock()">recalculate it</button>.
+    </div>
+
+    <div class="section-title">Sales by Department</div>
+    <div id="deptBreakdown"></div>
+
+    <div class="section-title" style="margin-top:18px;">Opening Cash Float</div>
+    <div class="hint" style="margin-bottom:10px;">
+      Cash already in the till when you open for the day (change float). Expected till cash = float + cash sales + cash from cleared specials. Set this every morning so the variance check is correct.
+    </div>
+    <div class="count-input">
+      <input id="openingFloatInput" type="number" placeholder="Opening float (K)" min="0" step="0.01">
+      <button style="padding:12px 16px;background:var(--accent);border:none;border-radius:6px;color:#04140c;font-weight:700;cursor:pointer;" onclick="saveOpeningFloat()">Set Float</button>
+    </div>
+    <div class="hint" id="floatHint" style="margin-bottom:14px;"></div>
+
+    <div class="hint">Count the physical cash in the till at end of day and enter it below to check for shortages or overages.</div>
+    <div class="count-input">
+      <input id="cashCounted" type="number" placeholder="Cash counted in till (K)">
+      <button style="padding:12px 16px;background:var(--accent);border:none;border-radius:6px;color:#04140c;font-weight:700;cursor:pointer;" onclick="checkVariance()">Check</button>
+    </div>
+    <div id="varianceResult"></div>
+
+    <div style="margin-top:18px;">
+      <button class="settings-btn primary" id="closeDayBtn" onclick="closeDay()" style="margin-top:0;">Close Day</button>
+      <div class="hint" id="closeDayHint">Locks today's numbers after you confirm the cash count. Does not stop further sales.</div>
+    </div>
+
+    <div class="section-title" style="margin-top:24px;">Past Days (in-app history)</div>
+    <div id="historyList"></div>
+
+    <div class="sync-box">
+      <div class="sync-row">
+        <span>Unsynced sales</span>
+        <span id="unsyncedCount" class="mono-val">0</span>
+      </div>
+      <button class="sync-btn" id="syncBtn" onclick="trySync()">Sync Now</button>
+      <div class="hint" id="syncHint">Sales save to this phone first. They queue here until there's internet, then push automatically.</div>
+    </div>
+  </div>
+
+  <!-- DEPARTMENT DETAIL -->
+  <div class="view" id="view-deptdetail">
+    <button class="rm" style="color:var(--sub); font-size:13px; margin-bottom:12px;" onclick="goTo('summary')">&lt; Back to Summary</button>
+    <div class="section-title" id="deptDetailTitle" style="font-size:18px; color:var(--text); text-transform:none; letter-spacing:0;"></div>
+    <div class="cards" style="margin-top:12px;">
+      <div class="card"><div class="label">Sales Today</div><div class="val" id="deptSales">K0.00</div></div>
+      <div class="card"><div class="label">Transactions</div><div class="val" id="deptTx">0</div></div>
+      <div class="card"><div class="label">Stock Value</div><div class="val" id="deptStockValue">K0.00</div></div>
+    </div>
+    <div class="section-title">Items in this Department</div>
+    <table>
+      <thead><tr><th>Item</th><th class="num">Sold Today</th><th class="num">Stock Remaining</th></tr></thead>
+      <tbody id="deptItemsBody"></tbody>
+    </table>
+  </div>
+
+  <!-- CLEAR SPECIAL -->
+  <div class="view" id="view-clearspecial">
+    <div class="hint" style="margin-bottom:14px;">Outstanding specials (credit sales). Clear one once the buyer has paid.</div>
+    <div id="specialsList"></div>
+  </div>
+
+  <!-- REFUNDS -->
+  <div class="view" id="view-refunds">
+    <div class="hint" style="margin-bottom:14px;">Today's sales. Refunding restores stock and subtracts the amount from today's totals.</div>
+    <div id="refundsList"></div>
+  </div>
+
+  <!-- SETTINGS -->
+  <div class="view" id="view-settings">
+    <div class="settings-group">
+      <div class="settings-label">Sellers</div>
+      <div id="sellerList"></div>
+      <div class="add-dept-row">
+        <input class="settings-input" id="newSellerName" placeholder="Seller name">
+        <input class="settings-input" id="newSellerPin" type="password" maxlength="6" placeholder="PIN" style="max-width:90px;">
+        <button class="settings-btn" onclick="addSeller()">Add</button>
+      </div>
+      <div class="hint">Each seller signs in with their own PIN. This is what lets several people use the same till and keeps each seller's specials count separate.</div>
+    </div>
+
+    <div class="settings-divider"></div>
+
+    <div class="settings-group">
+      <div class="settings-label">Theme</div>
+      <div class="chip-row" id="themeRow">
+        <span class="chip theme-chip on" data-theme="dark" onclick="setTheme('dark')">Dark</span>
+        <span class="chip theme-chip" data-theme="light" onclick="setTheme('light')">Light</span>
+        <span class="chip theme-chip" data-theme="contrast" onclick="setTheme('contrast')">High Contrast</span>
+      </div>
+    </div>
+
+    <div class="settings-divider"></div>
+
+    <div class="settings-group">
+      <div class="settings-label">Receipts</div>
+      <div class="chip-row" id="receiptRow">
+        <span class="chip theme-chip" id="receiptOn" onclick="setPrintReceipts(true)">On after checkout</span>
+        <span class="chip theme-chip" id="receiptOff" onclick="setPrintReceipts(false)">Off</span>
+      </div>
+      <div class="hint">When Off, checkout is faster — no receipt window. Turn On only when a customer needs a printed receipt.</div>
+    </div>
+
+    <div class="settings-divider"></div>
+
+    <div class="settings-group">
+      <div class="settings-label">Shop Name</div>
+      <input class="settings-input" id="setShopName" value="Josh's Shop">
+    </div>
+    <div class="settings-group">
+      <div class="settings-label">Currency Symbol</div>
+      <input class="settings-input" id="setCurrency" value="K">
+    </div>
+    <div class="settings-group">
+      <div class="settings-label">Low Stock Threshold</div>
+      <input class="settings-input" id="setLowStock" type="number" value="10">
+      <div class="hint">Items at or below this quantity are flagged yellow in Inventory.</div>
+    </div>
+
+    <div class="settings-divider"></div>
+
+    <div class="settings-group">
+      <div class="settings-label">Google Sheet Connection</div>
+      <div class="conn-status">
+        <span class="dot" id="connDot"></span> <span id="connLabel">Not connected</span>
+      </div>
+      <input class="settings-input" id="setEndpoint" placeholder="https://script.google.com/macros/s/.../exec" style="margin-bottom:10px;">
+      <button class="settings-btn" onclick="saveEndpoint()">Save Endpoint</button>
+      <div class="hint">Paste your Google Apps Script Web App URL or sync function URL here.</div>
+    </div>
+
+    <div class="settings-divider"></div>
+
+    <div class="settings-group">
+      <div class="settings-label">Departments</div>
+      <div class="chip-row" id="deptChipRow"></div>
+      <div class="add-dept-row">
+        <input class="settings-input" id="newDeptName" placeholder="New department name">
+        <button class="settings-btn" onclick="addDepartment()">Add</button>
+      </div>
+    </div>
+
+    <div class="settings-divider"></div>
+
+    <div class="settings-group">
+      <div class="settings-label">Export to Excel</div>
+      <div class="hint" style="margin-bottom:10px;">Downloads a real .xlsx file with your sales log and inventory, ready to open in Excel. This is a snapshot at the moment you tap it, not a live connection like the Google Sheet sync above.</div>
+      <button class="settings-btn" onclick="exportToExcel()">Download Excel File</button>
+    </div>
+
+    <div class="settings-divider"></div>
+
+    <div class="settings-group">
+      <div class="settings-label">Backup and Restore</div>
+      <div class="hint" style="margin-bottom:10px;">Everything lives only on this device. Back up regularly, especially before a phone change, factory reset, or clearing browser data.</div>
+      <button class="settings-btn" onclick="downloadBackup()">Download Backup</button>
+      <input type="file" id="restoreFileInput" accept="application/json" style="display:none;" onchange="restoreFromFile(event)">
+      <button class="settings-btn" onclick="document.getElementById('restoreFileInput').click()">Restore From Backup</button>
+      <div class="hint" id="lastBackupHint"></div>
+    </div>
+
+    <button class="settings-btn primary" onclick="saveSettings()">Save Settings</button>
+  </div>
+
+</main>
+
+<div class="scanner-overlay" id="scannerOverlay">
+  <div class="scanner-box">
+    <div class="scanner-header">
+      <span>Point camera at any code</span>
+      <button class="scanner-close" onclick="closeScanner()">Close</button>
+    </div>
+    <div id="scannerRegion"></div>
+    <div class="scanner-hint" id="scannerHint">Starting camera...</div>
+    <div style="display:flex; gap:8px; margin-top:10px;">
+      <button class="scanner-close" style="flex:1;" onclick="switchCamera()">Switch Camera</button>
+      <button class="scanner-close" style="flex:1; background:var(--accent); color:#04140c;" onclick="setDefaultCamera()">Set as Default</button>
+    </div>
+  </div>
+</div>
+
+<div class="scanner-overlay" id="editItemOverlay">
+  <div class="scanner-box">
+    <div class="scanner-header">
+      <span>Edit Item</span>
+      <button class="scanner-close" onclick="closeEditItem()">Close</button>
+    </div>
+    <div class="settings-group">
+      <div class="settings-label">Item Name</div>
+      <input class="settings-input" id="editItemName">
+    </div>
+    <div class="settings-group">
+      <div class="settings-label">Cost</div>
+      <input class="settings-input" id="editItemCost" type="number">
+    </div>
+    <div class="settings-group">
+      <div class="settings-label">Price</div>
+      <input class="settings-input" id="editItemPrice" type="number">
+    </div>
+    <div class="settings-group">
+      <div class="settings-label">Stock Quantity</div>
+      <input class="settings-input" id="editItemQty" type="number">
+    </div>
+    <button class="settings-btn primary" onclick="saveEditItem()">Save Changes</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div class="credit">Contact: Limbikani Phiri<br>+260770267374</div>
+
+<script>
+// ---------- Security Gate ----------
+// PIN only reappears after 5 hours of inactivity (or manual Lock).
+const AUTO_LOCK_MS = 5 * 60 * 60 * 1000; // 5 hours
+let autoLockTimer;
+
+function resetAutoLockTimer(){
+  clearTimeout(autoLockTimer);
+  autoLockTimer = setTimeout(lockTerminal, AUTO_LOCK_MS);
+  // Keep a soft session so a page refresh within the window doesn't demand PIN again
+  try {
+    if(currentSeller){
+      sessionStorage.setItem('zedtill_session', JSON.stringify({
+        sellerId: currentSeller.id,
+        unlockedAt: Date.now()
+      }));
+    }
+  } catch(e){}
+}
+window.onload = resetAutoLockTimer;
+document.onmousemove = resetAutoLockTimer;
+document.onkeypress = resetAutoLockTimer;
+document.ontouchstart = resetAutoLockTimer;
+
+function tryRestoreSession(){
+  try {
+    const raw = sessionStorage.getItem('zedtill_session');
+    if(!raw) return false;
+    const sess = JSON.parse(raw);
+    if(!sess || !sess.sellerId || !sess.unlockedAt) return false;
+    if(Date.now() - sess.unlockedAt > AUTO_LOCK_MS){
+      sessionStorage.removeItem('zedtill_session');
+      return false;
+    }
+    const match = sellers.find(s => s.id === sess.sellerId);
+    if(!match) return false;
+    currentSeller = match;
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('sellerTag').textContent = match.name;
+    updateSpecialCountDisplay();
+    resetAutoLockTimer();
+    return true;
+  } catch(e){
+    return false;
+  }
+}
+
+function verifyPin(){
+  const input = document.getElementById('pinInput').value;
+  const match = sellers.find(s => s.pin === input);
+  if(match){
+    currentSeller = match;
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('pinInput').value = '';
+    document.getElementById('sellerTag').textContent = match.name;
+    showToast('Signed in as ' + match.name);
+    updateSpecialCountDisplay();
+    resetAutoLockTimer();
+  } else {
+    showToast('PIN not recognized');
+    document.getElementById('pinInput').value = '';
+  }
+}
+
+function lockTerminal(){
+  currentSeller = null;
+  document.getElementById('sellerTag').textContent = '';
+  document.getElementById('loginScreen').style.display = 'flex';
+  document.getElementById('pinInput').focus();
+  try { sessionStorage.removeItem('zedtill_session'); } catch(e){}
+  clearTimeout(autoLockTimer);
+}
+
+// ---------- Sellers ----------
+function renderSellerList(){
+  const container = document.getElementById('sellerList');
+  if(!container) return;
+  const canRemove = isOwner() && sellers.length > 1;
+  container.innerHTML = sellers.map(s => `
+    <div class="seller-row">
+      <div><span class="name">${s.name}</span><span class="pin">PIN ${s.pin}</span></div>
+      ${canRemove ? `<button onclick="removeSeller('${s.id}')">Remove</button>` : ''}
+    </div>
+  `).join('');
+}
+function addSeller(){
+  const nameInput = document.getElementById('newSellerName');
+  const pinInput = document.getElementById('newSellerPin');
+  const name = nameInput.value.trim();
+  const pin = pinInput.value.trim();
+  if(!name){ showToast('Enter a seller name'); return; }
+  if(pin.length < 4){ showToast('PIN needs at least 4 digits'); return; }
+  if(sellers.some(s => s.pin === pin)){ showToast('That PIN is already in use'); return; }
+  sellers = [...sellers, { id: Date.now().toString(), name, pin }];
+  saveState().then(()=>{
+    nameInput.value = ''; pinInput.value = '';
+    renderSellerList();
+    showToast(name + ' added');
+  });
+}
+function removeSeller(id){
+  if(!isOwner()){ showToast('Only the owner can remove sellers'); return; }
+  if(sellers.length <= 1) return;
+  const seller = sellers.find(s => s.id === id);
+  if(!seller) return;
+  if(!confirm(`Remove seller "${seller.name}"? Their PIN will stop working immediately.`)) return;
+  sellers = sellers.filter(s => s.id !== id);
+  saveState().then(()=>{
+    renderSellerList();
+    showToast('Seller removed');
+  });
+}
+
+// ---------- Storage ----------
+function openDB(){
+  return new Promise((resolve,reject)=>{
+    const req = indexedDB.open('zedtill-db', 2);
+    req.onupgradeneeded = e => { 
+      const db = e.target.result;
+      if(!db.objectStoreNames.contains('kv')) db.createObjectStore('kv'); 
+    };
+    req.onsuccess = e => resolve(e.target.result);
+    req.onerror = e => reject(e);
+  });
+}
+
+async function saveState(){
+  const db = await openDB();
+  return new Promise((resolve,reject)=>{
+    const tx = db.transaction('kv','readwrite');
+    tx.objectStore('kv').put(JSON.stringify({
+      inventory, sales, unsynced, unsyncedSpecialEvents, settings, specials, departments, sellers, heldSales, openingStockValue, openingCashFloat, closedDays, savedDate: todayKey()
+    }), 'state');
+    tx.oncomplete = resolve; tx.onerror = reject;
+  });
+}
+
+async function loadState(){
+  const db = await openDB();
+  return new Promise((resolve)=>{
+    const tx = db.transaction('kv','readonly');
+    const req = tx.objectStore('kv').get('state');
+    req.onsuccess = () => resolve(req.result ? JSON.parse(req.result) : null);
+    req.onerror = () => resolve(null);
+  });
+}
+
+// ---------- State ----------
+let inventory = [
+  {name:"Coca-Cola 500ml", codes:["6001234567890", "COKE500"], cost:5, price:8, qty:40, dept:"Drinks"},
+  {name:"Bread Loaf", codes:["6009876543210", "BREAD01"], cost:9, price:14, qty:15, dept:"Food"},
+  {name:"Airtime K5 Voucher", codes:["6005551112223", "AIR5"], cost:5, price:5.5, qty:100, dept:"Other"},
+  {name:"Cooking Oil 750ml", codes:["6001112223334", "OIL750"], cost:22, price:30, qty:8, dept:"Food"},
+];
+let cart = [];
+let sales = [];
+let unsynced = [];
+let unsyncedSpecialEvents = [];
+let settings = { endpoint: '', theme: 'dark', printReceipts: false };
+let specials = [];
+const DAILY_SPECIAL_LIMIT = 5;
+let departments = ["Snacks","Food","Drinks","Other"];
+let sellers = [{ id: 'owner', name: 'Owner', pin: '1234' }];
+let heldSales = [];
+let currentSeller = null;
+let payType = "Cash";
+let openingStockValue = 0;
+let openingCashFloat = 0; // cash already in till at open; resets each new calendar day
+let closedDays = {}; // dateKey -> {salesTotal, txCount, cashExpected, cashCounted, variance, openingFloat, closedAt, closedBy}
+
+function isOwner(){
+  return currentSeller && (currentSeller.id === 'owner' || currentSeller.name === 'Owner');
+}
+
+function playScanFeedback(){
+  try { if(navigator.vibrate) navigator.vibrate(70); } catch(e){}
+  try {
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if(!Ctx) return;
+    const ctx = new Ctx();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.frequency.value = 1200;
+    gain.gain.setValueAtTime(0.12, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.08);
+    setTimeout(()=>ctx.close(), 150);
+  } catch(e){}
+}
+
+// Used only when a NEW sale/special is recorded. Anything sold at or
+// after 17:30 counts toward the next business day rather than today's,
+// since that day is effectively closing.
+function saleDateKey(){
+  const d = new Date();
+  const minutesNow = d.getHours() * 60 + d.getMinutes();
+  const closeMinutes = 17 * 60 + 30; // 17:30
+  if(minutesNow >= closeMinutes){
+    d.setDate(d.getDate() + 1);
+  }
+  // If the day this sale would land on has already been manually
+  // closed (via the Close Day button), keep rolling forward until we
+  // reach a day that hasn't been closed yet. Otherwise a sale made
+  // right after closing would still get added to a day that's already
+  // been locked in and reconciled.
+  let key = d.toDateString();
+  while(closedDays[key]){
+    d.setDate(d.getDate() + 1);
+    key = d.toDateString();
+  }
+  return key;
+}
+
+// Used everywhere else (Day Summary, cash variance, Refunds, specials
+// limit, opening stock tracking) to determine which business day is
+// "today" for filtering. Rolls forward past any day that's already
+// been manually closed, same as saleDateKey, so the Summary screen and
+// new sales always agree on which day is actually current.
+function todayKey(){
+  let d = new Date();
+  let key = d.toDateString();
+  while(closedDays[key]){
+    d.setDate(d.getDate() + 1);
+    key = d.toDateString();
+  }
+  return key;
+}
+function specialsUsedToday(){
+  const key = todayKey();
+  const sellerId = currentSeller ? currentSeller.id : null;
+  return specials.filter(s => s.dateKey === key && s.sellerId === sellerId).length;
+}
+
+async function init(){
+  const saved = await loadState();
+  if(saved){
+    inventory = saved.inventory || inventory;
+    sales = saved.sales || [];
+    unsynced = saved.unsynced || [];
+    unsyncedSpecialEvents = saved.unsyncedSpecialEvents || [];
+    settings = Object.assign({ endpoint: '', theme: 'dark', printReceipts: false }, saved.settings || {});
+    specials = saved.specials || [];
+    departments = saved.departments || ["Snacks","Food","Drinks","Other"];
+    sellers = saved.sellers && saved.sellers.length ? saved.sellers : [{ id: 'owner', name: 'Owner', pin: '1234' }];
+    heldSales = saved.heldSales || [];
+    closedDays = saved.closedDays || {};
+
+    inventory.forEach(i => {
+      if(!i.codes) i.codes = [];
+      if(i.barcode) { i.codes.push(i.barcode); delete i.barcode; }
+      if(i.code) { i.codes.push(i.code); delete i.code; }
+    });
+
+    if(saved.savedDate === todayKey() && saved.openingStockValue !== undefined){
+      openingStockValue = saved.openingStockValue;
+    } else {
+      openingStockValue = inventory.reduce((s,i)=>s + (i.cost*i.qty), 0);
+    }
+    // Opening float is day-scoped: keep it only if we're still on the same saved day
+    if(saved.savedDate === todayKey() && saved.openingCashFloat !== undefined){
+      openingCashFloat = Number(saved.openingCashFloat) || 0;
+    } else {
+      openingCashFloat = 0;
+    }
+  } else {
+    openingStockValue = inventory.reduce((s,i)=>s + (i.cost*i.qty), 0);
+    openingCashFloat = 0;
+  }
+
+  document.getElementById('setEndpoint').value = settings.endpoint || '';
+  applyTheme(settings.theme || 'dark');
+  applyReceiptChips();
+  renderCart();
+  updateUnsyncedBadge();
+  updateSpecialCountDisplay();
+  renderDeptOptions();
+  renderDeptChips();
+  renderSellerList();
+  updateConnStatus();
+  renderQuickSelect();
+  renderHeldSales();
+  // Skip PIN screen if still inside the 5-hour unlock window
+  tryRestoreSession();
+}
+
+function saveSettings(){
+  saveState().then(()=>{
+    showToast('Settings saved successfully');
+  }).catch(err=>showToast('Could not save: ' + err.message));
+}
+
+// ---------- Backup / Restore ----------
+// ---------- Excel Export ----------
+function exportToExcel(){
+  if(typeof XLSX === 'undefined'){
+    showToast('Excel library failed to load. Check your internet connection.');
+    return;
+  }
+
+  const wb = XLSX.utils.book_new();
+
+  // Sales Log sheet
+  const salesRows = sales
+    .slice()
+    .sort((a,b)=> new Date(a.time) - new Date(b.time))
+    .map(s => ({
+      Date: new Date(s.time).toLocaleDateString(),
+      Time: new Date(s.time).toLocaleTimeString(),
+      Item: s.name,
+      Qty: s.qty,
+      Price: s.price,
+      Total: s.total,
+      'Payment Type': s.pay,
+      Department: s.dept,
+      Seller: s.seller || '',
+      Type: s.isRefund ? 'Refund' : (s.refunded ? 'Refunded' : 'Sale')
+    }));
+  const salesSheet = salesRows.length
+    ? XLSX.utils.json_to_sheet(salesRows)
+    : XLSX.utils.aoa_to_sheet([['No sales recorded yet']]);
+  XLSX.utils.book_append_sheet(wb, salesSheet, 'Sales Log');
+
+  // Inventory sheet
+  const invRows = inventory.map(i => ({
+    Item: i.name,
+    Department: i.dept || 'Other',
+    'Codes / SKUs': (i.codes||[]).join(', '),
+    Cost: i.cost,
+    Price: i.price,
+    'Stock Remaining': i.qty,
+    'Stock Value': (i.cost * i.qty).toFixed(2)
+  }));
+  const invSheet = invRows.length
+    ? XLSX.utils.json_to_sheet(invRows)
+    : XLSX.utils.aoa_to_sheet([['No inventory added yet']]);
+  XLSX.utils.book_append_sheet(wb, invSheet, 'Inventory');
+
+  // Day Summary sheet
+  const todaysSales = getVisibleSales(todayKey());
+  const salesTotal = todaysSales.reduce((s,t)=>s+t.total,0);
+  const closingValue = inventory.reduce((s,i)=>s+i.cost*i.qty,0);
+  const summaryRows = [
+    { Metric: 'Date', Value: new Date().toLocaleDateString() },
+    { Metric: 'Sales Today', Value: salesTotal.toFixed(2) },
+    { Metric: 'Transactions Today', Value: todaysSales.length },
+    { Metric: 'Opening Stock Value', Value: openingStockValue.toFixed(2) },
+    { Metric: 'Closing Stock Value', Value: closingValue.toFixed(2) },
+    { Metric: 'Opening Cash Float', Value: openingCashFloat.toFixed(2) },
+  ];
+  const summarySheet = XLSX.utils.json_to_sheet(summaryRows);
+  XLSX.utils.book_append_sheet(wb, summarySheet, 'Day Summary');
+
+  const stamp = new Date().toISOString().slice(0,10);
+  XLSX.writeFile(wb, `zedtill-export-${stamp}.xlsx`);
+  showToast('Excel file downloaded');
+}
+
+function downloadBackup(){
+  const backup = {
+    zedtillBackup: true,
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    inventory, sales, unsynced, settings, specials, departments, sellers,
+    openingStockValue, openingCashFloat, closedDays, savedDate: todayKey()
+  };
+  const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const stamp = new Date().toISOString().slice(0,10);
+  a.href = url;
+  a.download = `zedtill-backup-${stamp}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+
+  settings = { ...settings, lastBackup: new Date().toISOString() };
+  saveState();
+  document.getElementById('lastBackupHint').textContent = 'Last backup: ' + new Date().toLocaleString();
+  showToast('Backup downloaded');
+}
+
+function restoreFromFile(event){
+  if(!isOwner()){ showToast('Only the owner can restore backups'); event.target.value = ''; return; }
+  const file = event.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    let data;
+    try{
+      data = JSON.parse(e.target.result);
+    }catch(err){
+      showToast('That file is not valid JSON');
+      event.target.value = '';
+      return;
+    }
+    if(!data.zedtillBackup){
+      showToast('That does not look like a ZedTill backup file');
+      event.target.value = '';
+      return;
+    }
+    if(!confirm('This replaces everything currently on this device (inventory, sales, sellers, settings) with the backup from ' + new Date(data.exportedAt).toLocaleString() + '. Continue?')){
+      event.target.value = '';
+      return;
+    }
+    inventory = data.inventory || [];
+    sales = data.sales || [];
+    unsynced = data.unsynced || [];
+    settings = data.settings || {endpoint:'', theme:'dark'};
+    specials = data.specials || [];
+    departments = data.departments || ["Snacks","Food","Drinks","Other"];
+    sellers = data.sellers && data.sellers.length ? data.sellers : [{ id: 'owner', name: 'Owner', pin: '1234' }];
+    openingStockValue = data.openingStockValue || 0;
+    openingCashFloat = data.openingCashFloat !== undefined ? Number(data.openingCashFloat) || 0 : 0;
+    closedDays = data.closedDays || {};
+
+    saveState().then(()=>{
+      applyTheme(settings.theme || 'dark');
+      document.getElementById('setEndpoint').value = settings.endpoint || '';
+      renderInventory();
+      renderCart();
+      renderSummary();
+      renderSpecialsList();
+      renderDeptOptions();
+      renderDeptChips();
+      renderSellerList();
+      renderQuickSelect();
+      updateUnsyncedBadge();
+      updateSpecialCountDisplay();
+      updateConnStatus();
+      showToast('Backup restored');
+    });
+    event.target.value = '';
+  };
+  reader.readAsText(file);
+}
+
+function setTheme(theme){
+  settings = { ...settings, theme };
+  applyTheme(theme);
+  saveState();
+}
+
+function applyTheme(theme){
+  document.body.classList.remove('theme-light','theme-contrast');
+  if(theme==='light') document.body.classList.add('theme-light');
+  if(theme==='contrast') document.body.classList.add('theme-contrast');
+  document.querySelectorAll('.theme-chip[data-theme]').forEach(c=>{
+    c.classList.toggle('on', c.dataset.theme===theme);
+  });
+  applyReceiptChips();
+}
+
+function setPrintReceipts(on){
+  settings = { ...settings, printReceipts: !!on };
+  applyReceiptChips();
+  saveState();
+  showToast(on ? 'Receipts on after checkout' : 'Receipts off');
+}
+
+function applyReceiptChips(){
+  const on = !!settings.printReceipts;
+  const onEl = document.getElementById('receiptOn');
+  const offEl = document.getElementById('receiptOff');
+  if(onEl) onEl.classList.toggle('on', on);
+  if(offEl) offEl.classList.toggle('on', !on);
+}
+
+function updateConnStatus(){
+  const dot = document.getElementById('connDot');
+  const label = document.getElementById('connLabel');
+  if(settings.endpoint){
+    dot.classList.add('connected');
+    label.textContent = 'Connected to Sheet';
+  } else {
+    dot.classList.remove('connected');
+    label.textContent = 'Not connected';
+  }
+}
+
+// ---------- Network / Sync ----------
+function updateNetStatus(){
+  const online = navigator.onLine;
+  document.getElementById('netDot').classList.toggle('off', !online);
+  document.getElementById('netLabel').textContent = online ? 'Online' : 'Offline';
+  if(online) trySync(true);
+}
+window.addEventListener('online', updateNetStatus);
+window.addEventListener('offline', updateNetStatus);
+
+function updateUnsyncedBadge(){
+  const el = document.getElementById('unsyncedCount');
+  if(el) el.textContent = unsynced.length;
+}
+
+let syncInProgress = false;
+
+async function trySync(silent){
+  if(!navigator.onLine){ if(!silent) showToast('No internet. Queue saved locally'); return; }
+  if(!settings.endpoint){ if(!silent) showToast('No endpoint configured'); return; }
+
+  // Prevents two overlapping syncs (e.g. checkout finishing right as
+  // the "online" event fires) from both reading the same pending items
+  // and sending them twice, which showed up as duplicate rows in the
+  // sheet.
+  if(syncInProgress){ return; }
+  syncInProgress = true;
+
+  const hint = document.getElementById('syncHint');
+  let salesOk = true;
+
+  // Snapshot and clear the queue BEFORE sending, synchronously, so any
+  // other code that reads `unsynced` while this request is in flight
+  // sees an empty queue instead of the same pending items.
+  const toSend = unsynced;
+  unsynced = [];
+  const count = toSend.length;
+
+  if(count > 0){
+    if(hint) hint.textContent = 'Sending ' + count + ' item(s)...';
+    try{
+      // text/plain avoids a CORS preflight that Google Apps Script Web
+      // Apps do not handle. The body is still valid JSON; Apps Script
+      // reads it from e.postData.contents regardless of this header.
+      await fetch(settings.endpoint, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: {'Content-Type':'text/plain;charset=utf-8'},
+        body: JSON.stringify({ type: 'sales', sales: toSend })
+      });
+      // no-cors gives an opaque response: the browser cannot read
+      // status or body, so this only confirms the request was SENT,
+      // not that Apps Script accepted it.
+      await saveState();
+      updateUnsyncedBadge();
+    } catch(err){
+      salesOk = false;
+      unsynced = toSend.concat(unsynced);
+      await saveState();
+      updateUnsyncedBadge();
+      showToast('Sync failed to send');
+      if(hint) hint.textContent = 'Sync failed: ' + err.message + '. Still queued, will retry.';
+    }
+  }
+
+  // Push any pending special events (new credit sales, clearances) as
+  // their own log so the sheet has visibility into specials, separate
+  // from the main sales log.
+  const specialsToSend = unsyncedSpecialEvents;
+  unsyncedSpecialEvents = [];
+  if(specialsToSend.length > 0){
+    try{
+      await fetch(settings.endpoint, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: {'Content-Type':'text/plain;charset=utf-8'},
+        body: JSON.stringify({ type: 'specials', events: specialsToSend })
+      });
+      await saveState();
+    }catch(spErr){
+      unsyncedSpecialEvents = specialsToSend.concat(unsyncedSpecialEvents);
+      await saveState();
+    }
+  }
+
+  // Push a fresh stock snapshot regardless of whether there were any
+  // pending sales, so quantity edits, new items, and deletions sync
+  // even between checkouts, not only right after a sale.
+  try{
+    await fetch(settings.endpoint, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: {'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify({
+        type: 'inventory',
+        inventory: inventory.map(i => ({ name:i.name, dept:i.dept, cost:i.cost, price:i.price, qty:i.qty }))
+      })
+    });
+  }catch(invErr){ /* stock snapshot is best-effort, don't block on it */ }
+
+  if(salesOk){
+    if(count > 0){
+      showToast('Sent ' + count + ' item(s). Check the sheet to confirm.');
+      if(hint) hint.textContent = 'Last send: ' + new Date().toLocaleTimeString() + ' (' + count + ' items). Verify rows appeared in your sheet.';
+    } else if(!silent){
+      showToast('Stock synced');
+      if(hint) hint.textContent = 'Stock synced: ' + new Date().toLocaleTimeString() + '. No new sales to send.';
+    }
+  }
+
+  syncInProgress = false;
+}
+
+function saveEndpoint(){
+  settings = { ...settings, endpoint: document.getElementById('setEndpoint').value.trim() };
+  saveState().then(()=>{
+    showToast('Endpoint updated');
+  });
+}
+
+// ---------- Nav ----------
+function toggleDrawer(open){
+  document.getElementById('drawer').classList.toggle('show', open);
+  document.getElementById('overlay').classList.toggle('show', open);
+}
+
+function goTo(view){
+  document.querySelectorAll('.nav-item').forEach(b=>b.classList.toggle('active', b.dataset.view===view));
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.getElementById('view-'+view).classList.add('active');
+  if(view==='inventory'){ renderInventory(); renderDeptOptions(); }
+  if(view==='summary') renderSummary();
+  if(view==='clearspecial') renderSpecialsList();
+  if(view==='refunds') renderRefundsList();
+  if(view==='settings'){
+    renderDeptChips();
+    renderSellerList();
+    document.getElementById('lastBackupHint').textContent = settings.lastBackup
+      ? 'Last backup: ' + new Date(settings.lastBackup).toLocaleString()
+      : 'No backup taken yet on this device.';
+  }
+  if(view==='sell') document.getElementById('scanInput').focus();
+  toggleDrawer(false);
+}
+
+let activeDeptDetail = null;
+
+function openDeptDetail(dept){
+  activeDeptDetail = dept;
+  goTo('deptdetail');
+  renderDeptDetail(dept);
+}
+
+function renderDeptDetail(dept){
+  document.getElementById('deptDetailTitle').textContent = dept;
+
+  const todaysSales = getVisibleSales(todayKey()).filter(s => s.dept === dept);
+  const salesTotal = todaysSales.reduce((s,t)=>s+t.total,0);
+
+  const deptItems = inventory.filter(i => (i.dept||'Other') === dept);
+  const stockValue = deptItems.reduce((s,i)=>s+(i.cost*i.qty),0);
+
+  document.getElementById('deptSales').textContent = 'K'+salesTotal.toFixed(2);
+  document.getElementById('deptTx').textContent = todaysSales.length;
+  document.getElementById('deptStockValue').textContent = 'K'+stockValue.toFixed(2);
+
+  const soldByItem = {};
+  todaysSales.forEach(s=>{
+    soldByItem[s.name] = (soldByItem[s.name] || 0) + s.qty;
+  });
+
+  const body = document.getElementById('deptItemsBody');
+  if(deptItems.length === 0){
+    body.innerHTML = '<tr><td colspan="3" class="cart-empty">No items in this department</td></tr>';
+    return;
+  }
+  body.innerHTML = deptItems.map(i => `
+    <tr>
+      <td>${i.name}</td>
+      <td class="num">${soldByItem[i.name] || 0}</td>
+      <td class="num">${i.qty}</td>
+    </tr>
+  `).join('');
+}
+
+// ---------- Clock ----------
+function tick(){ document.getElementById('clock').textContent = new Date().toLocaleTimeString(); }
+tick(); setInterval(tick, 1000);
+
+// ---------- Scan / Sell Logic ----------
+document.getElementById('scanInput').addEventListener('keydown', e=>{
+  if(e.key==='Enter'){ handleScan(); }
+});
+
+function handleScan(){
+  const raw = document.getElementById('scanInput').value.trim();
+  if(!raw) return;
+  const valLower = raw.toLowerCase();
+  
+  // Multi-code & custom matching
+  const item = inventory.find(i => 
+    i.name.toLowerCase() === valLower ||
+    (i.codes && i.codes.some(c => c.trim().toLowerCase() === valLower)) ||
+    i.name.toLowerCase().includes(valLower)
+  );
+
+  if(!item){ showToast('Item not found'); document.getElementById('scanInput').value=''; return; }
+  if(item.qty<=0){ showToast(item.name+' is out of stock'); document.getElementById('scanInput').value=''; return; }
+
+  const existing = cart.find(c=>c.name===item.name);
+  if(existing){ existing.qty++; } else { cart.push({name:item.name, price:item.price, qty:1}); }
+  document.getElementById('scanInput').value='';
+  renderCart();
+  playScanFeedback();
+  const inCart = cart.find(c=>c.name===item.name).qty;
+  showToast(item.name + ' added · ' + (item.qty - inCart) + ' left in stock');
+}
+
+function renderCart(){
+  const body = document.getElementById('cartBody');
+  body.innerHTML='';
+  document.getElementById('cartEmpty').style.display = cart.length ? 'none':'block';
+  let totalItems=0, totalAmt=0;
+  cart.forEach((c,idx)=>{
+    totalItems += c.qty; totalAmt += c.qty*c.price;
+    body.innerHTML += `<tr>
+      <td>${c.name}</td>
+      <td class="num">${c.qty}</td>
+      <td class="num">K${c.price.toFixed(2)}</td>
+      <td class="num">K${(c.qty*c.price).toFixed(2)}</td>
+      <td><button class="rm" onclick="removeFromCart(${idx})">X</button></td>
+    </tr>`;
+  });
+  document.getElementById('totItems').textContent = totalItems;
+  document.getElementById('totAmount').textContent = 'K'+totalAmt.toFixed(2);
+  updateTenderVisibility();
+  calcChange();
+}
+
+function removeFromCart(idx){ cart.splice(idx,1); renderCart(); }
+
+// ---------- Hold Sale ----------
+function holdSale(){
+  if(cart.length === 0){ showToast('Cart is empty, nothing to hold'); return; }
+  const label = prompt('Label this held sale (e.g. a name or table number):', '');
+  if(label === null) return;
+
+  const held = {
+    id: Date.now().toString(),
+    label: label.trim() || ('Held ' + new Date().toLocaleTimeString()),
+    items: [...cart],
+    payType,
+    specialName: document.getElementById('specialName').value.trim(),
+    specialPhone: document.getElementById('specialPhone').value.trim(),
+    time: new Date().toISOString()
+  };
+  heldSales.push(held);
+
+  cart = [];
+  document.getElementById('cashTendered').value='';
+  document.getElementById('specialName').value='';
+  document.getElementById('specialPhone').value='';
+  setPay('Cash');
+  renderCart();
+  saveState();
+  renderHeldSales();
+  showToast('Held: ' + held.label);
+}
+
+function renderHeldSales(){
+  const section = document.getElementById('heldSalesSection');
+  const container = document.getElementById('heldSalesChips');
+  if(!section || !container) return;
+  if(heldSales.length === 0){
+    section.style.display = 'none';
+    return;
+  }
+  section.style.display = 'flex';
+  container.innerHTML = heldSales.map(h => {
+    const total = h.items.reduce((s,c)=>s+c.qty*c.price,0);
+    return `<span class="quick-chip held-chip">
+      <span onclick="resumeHeldSale('${h.id}')">${h.label} <span class="chip-stock">(K${total.toFixed(2)})</span></span>
+      <button class="held-cancel" onclick="event.stopPropagation(); deleteHeldSale('${h.id}')">X</button>
+    </span>`;
+  }).join('');
+}
+
+function deleteHeldSale(id){
+  const held = heldSales.find(h => h.id === id);
+  if(!held) return;
+  if(!confirm(`Cancel held sale "${held.label}"? Its items will not be returned to any cart, this just discards the hold.`)) return;
+  heldSales = heldSales.filter(h => h.id !== id);
+  saveState();
+  renderHeldSales();
+  showToast('Held sale cancelled');
+}
+
+function resumeHeldSale(id){
+  const held = heldSales.find(h => h.id === id);
+  if(!held) return;
+
+  if(cart.length > 0){
+    if(!confirm('Resuming this will replace what\'s currently in the cart. Continue?')) return;
+  }
+
+  cart = [...held.items];
+  heldSales = heldSales.filter(h => h.id !== id);
+  setPay(held.payType || 'Cash');
+  if(held.payType === 'Special'){
+    document.getElementById('specialName').value = held.specialName || '';
+    document.getElementById('specialPhone').value = held.specialPhone || '';
+    validateSpecial();
+  }
+  renderCart();
+  saveState();
+  renderHeldSales();
+  showToast('Resumed: ' + held.label);
+}
+
+// ---------- Multi-Code Camera Scanner ----------
+let html5QrCode = null;
+let scanTarget = 'sell';
+let rescanItemIdx = null;
+let editItemIdx = null;
+let availableCameras = [];
+let currentCameraIdx = 0;
+let camerasCached = false; // skip slow getCameras() after first success
+
+function openScanner(target){
+  scanTarget = target || 'sell';
+  document.getElementById('scannerOverlay').classList.add('show');
+  document.getElementById('scannerHint').textContent = 'Starting camera...';
+
+  // Always start from a clean instance. Creating this object is cheap;
+  // the actual slow part is enumerating cameras (getCameras()) and
+  // negotiating the video stream, and that caching is kept below via
+  // camerasCached/availableCameras. Reusing the live camera object
+  // itself across open/close cycles is what was causing the scanner to
+  // open unpredictably.
+  html5QrCode = new Html5Qrcode("scannerRegion");
+
+  // Fast path: known preferred camera — start immediately, no getCameras wait
+  if(settings.preferredCameraId && camerasCached && availableCameras.length){
+    const savedIdx = availableCameras.findIndex(c => c.id === settings.preferredCameraId);
+    currentCameraIdx = savedIdx !== -1 ? savedIdx : 0;
+    startCameraByIndex_(currentCameraIdx);
+    return;
+  }
+  if(settings.preferredCameraId && !camerasCached){
+    // Still try direct start with saved deviceId while we warm the list in background
+    availableCameras = [{ id: settings.preferredCameraId, label: settings.preferredCameraLabel || 'Saved camera' }];
+    currentCameraIdx = 0;
+    startCameraByIndex_(currentCameraIdx);
+    Html5Qrcode.getCameras().then(cameras => {
+      const all = cameras || [];
+      const backOnly = all.filter(c => !/front|user|selfie/i.test(c.label));
+      availableCameras = backOnly.length ? backOnly : all;
+      camerasCached = true;
+    }).catch(()=>{});
+    return;
+  }
+
+  Html5Qrcode.getCameras().then(cameras => {
+    const all = cameras || [];
+    if(!all.length){ throw new Error('No camera found on this device'); }
+
+    // Exclude the front/selfie camera entirely so Switch Camera and the
+    // default guess never land on it.
+    const backOnly = all.filter(c => !/front|user|selfie/i.test(c.label));
+    availableCameras = backOnly.length ? backOnly : all;
+    camerasCached = true;
+
+    if(settings.preferredCameraId){
+      const savedIdx = availableCameras.findIndex(c => c.id === settings.preferredCameraId);
+      if(savedIdx !== -1){
+        currentCameraIdx = savedIdx;
+        startCameraByIndex_(currentCameraIdx);
+        return;
+      }
+    }
+    currentCameraIdx = 0;
+    startCameraByIndex_(currentCameraIdx);
+  }).catch(err=>{
+    document.getElementById('scannerHint').textContent = 'Camera error: ' + err.message;
+  });
+}
+
+function startCameraByIndex_(idx){
+  const camera = availableCameras[idx];
+  if(!camera){
+    document.getElementById('scannerHint').textContent = 'No camera available';
+    return;
+  }
+  // Lower resolution + modest fps = much faster open on phones
+  const config = {
+    fps: 12,
+    qrbox: { width: 260, height: 160 },
+    aspectRatio: 1.333,
+    experimentalFeatures: {
+      useBarCodeDetectorIfSupported: true
+    },
+    videoConstraints: {
+      deviceId: { exact: camera.id },
+      width: { ideal: 1280 },
+      height: { ideal: 720 },
+      facingMode: { ideal: 'environment' }
+    }
+  };
+  document.getElementById('scannerHint').textContent = 'Starting ' + (camera.label || ('Camera ' + (idx+1))) + '...';
+
+  let attempt = 0;
+  const maxAttempts = 3;
+  const retryDelays = [1000, 1800, 2800]; // camera hardware release lag grows if it's still stuck
+
+  const start = () => {
+    html5QrCode.start(camera.id, config, onScanSuccess, () => {})
+      .then(()=>{
+        document.getElementById('scannerHint').textContent = 'Align any code in the box';
+      })
+      .catch(err=>{
+        // Fallback: drop exact deviceId constraints if the fast path failed
+        const soft = {
+          fps: 10,
+          qrbox: { width: 240, height: 150 },
+          experimentalFeatures: { useBarCodeDetectorIfSupported: true },
+          videoConstraints: { facingMode: 'environment' }
+        };
+        html5QrCode.start({ facingMode: 'environment' }, soft, onScanSuccess, () => {})
+          .then(()=>{
+            document.getElementById('scannerHint').textContent = 'Align any code in the box';
+          })
+          .catch(err2=>{
+            const msg = String(err2);
+            const isHardwareBusy = /NotReadable|TrackStart|could not start video source/i.test(msg);
+            if(isHardwareBusy && attempt < maxAttempts){
+              const delay = retryDelays[attempt];
+              attempt++;
+              document.getElementById('scannerHint').textContent =
+                'Camera still releasing from last time, retrying in ' + (delay/1000).toFixed(1) + 's (attempt ' + attempt + ' of ' + maxAttempts + ')...';
+              setTimeout(start, delay);
+            } else {
+              document.getElementById('scannerHint').textContent = 'Could not start camera: ' + err2 + '. Try Switch Camera.';
+            }
+          });
+      });
+  };
+
+  // If a previous stream is still stopping, wait briefly then start
+  if(html5QrCode && html5QrCode.isScanning){
+    html5QrCode.stop().then(start).catch(start);
+  } else {
+    start();
+  }
+}
+
+function switchCamera(){
+  if(availableCameras.length < 2){
+    showToast('Only one back camera detected on this device');
+    return;
+  }
+  const nextIdx = (currentCameraIdx + 1) % availableCameras.length;
+  if(!html5QrCode){ return; }
+  html5QrCode.stop().then(()=>{
+    currentCameraIdx = nextIdx;
+    startCameraByIndex_(currentCameraIdx);
+  }).catch(()=>{
+    currentCameraIdx = nextIdx;
+    startCameraByIndex_(currentCameraIdx);
+  });
+}
+
+function setDefaultCamera(){
+  const camera = availableCameras[currentCameraIdx];
+  if(!camera){ return; }
+  settings = { ...settings, preferredCameraId: camera.id, preferredCameraLabel: camera.label };
+  saveState();
+  showToast('This camera is now the default. Next open skips the slow camera list.');
+}
+
+function onScanSuccess(decodedText){
+  if(scanTarget === 'rescan' && rescanItemIdx !== null){
+    const item = inventory[rescanItemIdx];
+    if(!item){ closeScanner(); return; }
+    if(!item.codes) item.codes = [];
+    if(item.codes.includes(decodedText)){
+      showToast('That code is already attached to ' + item.name);
+    } else {
+      item.codes.push(decodedText);
+      saveState();
+      renderInventory();
+      if(navigator.onLine) trySync(true);
+      showToast('Code added to ' + item.name);
+    }
+    rescanItemIdx = null;
+    closeScanner();
+  } else if(scanTarget === 'inventory'){
+    const input = document.getElementById('newCodes');
+    const existing = input.value.trim();
+    if(existing && !existing.includes(decodedText)){
+      input.value = existing + ', ' + decodedText;
+    } else if(!existing) {
+      input.value = decodedText;
+    }
+    closeScanner();
+    showToast('Code Captured');
+  } else {
+    document.getElementById('scanInput').value = decodedText;
+    closeScanner();
+    handleScan();
+  }
+}
+
+function rescanForItem(idx){
+  rescanItemIdx = idx;
+  openScanner('rescan');
+}
+
+function closeScanner(){
+  document.getElementById('scannerOverlay').classList.remove('show');
+  if(html5QrCode){
+    const toClose = html5QrCode;
+    // Reusing the same live camera object across open/close cycles
+    // without waiting for a full stop was causing the scanner to open
+    // unpredictably, sometimes on the wrong camera, sometimes with a
+    // delay, because a new start() could begin before the previous
+    // stop() had actually finished. Always tear down completely and
+    // start fresh next time; the camera LIST is still cached (that
+    // part was safe) so reopening is still fast, just not the live
+    // stream object itself.
+    toClose.stop().then(()=>toClose.clear()).catch(()=>{}).finally(()=>{
+      if(html5QrCode === toClose) html5QrCode = null;
+    });
+  }
+}
+
+function setPay(type){
+  if(type === 'Special' && specialsUsedToday() >= DAILY_SPECIAL_LIMIT){
+    showToast('Daily special limit reached');
+    return;
+  }
+  payType = type;
+  document.querySelectorAll('.pay-btn').forEach(b=>b.classList.toggle('sel', b.dataset.pay===type));
+  updateTenderVisibility();
+  calcChange();
+}
+
+function cartTotal(){ return cart.reduce((s,c)=>s+c.qty*c.price,0); }
+
+function updateSpecialCountDisplay(){
+  const used = specialsUsedToday();
+  const el = document.getElementById('specialCount');
+  if(!el) return;
+  const who = currentSeller ? currentSeller.name : 'seller';
+  el.textContent = who + ' specials used today: ' + used + ' of ' + DAILY_SPECIAL_LIMIT;
+  el.className = 'special-count' + (used >= DAILY_SPECIAL_LIMIT ? ' limit' : '');
+}
+
+function updateTenderVisibility(){
+  const cashRow = document.getElementById('tenderRow');
+  const specialRow = document.getElementById('specialRow');
+  const showCash = payType==='Cash' && cart.length>0;
+  const showSpecial = payType==='Special' && cart.length>0;
+  cashRow.style.display = showCash ? 'block' : 'none';
+  specialRow.style.display = showSpecial ? 'block' : 'none';
+  if(!showCash) document.getElementById('cashTendered').value='';
+  if(!showSpecial){ document.getElementById('specialName').value=''; document.getElementById('specialPhone').value=''; }
+}
+
+function validateSpecial(){ calcChange(); }
+
+function calcChange(){
+  const total = cartTotal();
+  const box = document.getElementById('changeDue');
+  const btn = document.getElementById('checkoutBtn');
+  if(cart.length===0){ btn.disabled = true; box.textContent=''; return; }
+
+  if(payType==='Special'){
+    box.textContent = '';
+    const name = document.getElementById('specialName').value.trim();
+    const phone = document.getElementById('specialPhone').value.trim();
+    btn.disabled = !(name && phone);
+    return;
+  }
+  if(payType!=='Cash'){ btn.disabled = false; box.textContent=''; return; }
+
+  const tendered = parseFloat(document.getElementById('cashTendered').value);
+  if(isNaN(tendered)){ box.textContent=''; btn.disabled = true; return; }
+  const change = tendered - total;
+  if(change < 0){
+    box.textContent = `Short by K${Math.abs(change).toFixed(2)}`;
+    box.className = 'change-due short';
+    btn.disabled = true;
+  } else {
+    box.textContent = `Change Due: K${change.toFixed(2)}`;
+    box.className = 'change-due give';
+    btn.disabled = false;
+  }
+}
+
+function checkout(){
+  const total = cartTotal();
+  const sellerName = currentSeller ? currentSeller.name : 'Unknown';
+  const sellerId = currentSeller ? currentSeller.id : null;
+  const cartSnapshot = cart.map(c => ({...c}));
+  let tendered = 0;
+  let change = 0;
+  if(payType==='Cash'){
+    tendered = parseFloat(document.getElementById('cashTendered').value)||0;
+    change = tendered - total;
+  }
+  let specialBuyer = null;
+  const specialId = payType==='Special' ? Date.now().toString() : null;
+  if(payType==='Special'){
+    specialBuyer = {
+      name: document.getElementById('specialName').value.trim(),
+      phone: document.getElementById('specialPhone').value.trim()
+    };
+  }
+
+  cart.forEach(c=>{
+    const inv = inventory.find(i=>i.name===c.name);
+    if(inv) inv.qty -= c.qty;
+    const record = {
+      id: Date.now().toString() + Math.random().toString(36).slice(2,7),
+      time: new Date().toISOString(),
+      dateKey: saleDateKey(),
+      name: c.name,
+      qty: c.qty,
+      price: c.price,
+      total: c.qty*c.price,
+      pay: payType,
+      dept: inv ? (inv.dept||'Other') : 'Other',
+      seller: sellerName,
+      refunded: false,
+      specialId: specialId
+    };
+    sales.push(record);
+    unsynced.push(record);
+  });
+
+  let msg = `Sale saved: K${total.toFixed(2)} (${payType})`;
+  if(payType==='Cash'){
+    msg += ` · Change: K${change.toFixed(2)}`;
+  }
+  if(payType==='Special'){
+    const name = specialBuyer.name;
+    const phone = specialBuyer.phone;
+    const items = cartSnapshot.map(c => ({ name: c.name, qty: c.qty, price: c.price }));
+    specials.push({
+      id: specialId,
+      name, phone, amount: total,
+      items,
+      time: new Date().toISOString(),
+      dateKey: saleDateKey(),
+      sellerId, sellerName,
+      cleared: false
+    });
+    unsyncedSpecialEvents.push({ id: specialId, type: 'created', name, phone, amount: total, items, time: new Date().toISOString(), sellerName });
+    msg = `Special recorded for ${name}: K${total.toFixed(2)}`;
+  }
+
+  showToast(msg);
+  if(settings.printReceipts){
+    showReceipt(cartSnapshot, total, payType, tendered, change, specialBuyer, sellerName);
+  }
+  cart = [];
+  document.getElementById('cashTendered').value='';
+  document.getElementById('specialName').value='';
+  document.getElementById('specialPhone').value='';
+  setPay('Cash');
+  renderCart();
+  saveState();
+  updateUnsyncedBadge();
+  updateSpecialCountDisplay();
+  renderSummary();
+  renderQuickSelect();
+  if(navigator.onLine) trySync(true);
+}
+
+function showReceipt(items, total, pay, tendered, change, specialBuyer, sellerName){
+  const shop = (document.getElementById('setShopName') && document.getElementById('setShopName').value) || 'Shop';
+  const currency = (document.getElementById('setCurrency') && document.getElementById('setCurrency').value) || 'K';
+  const now = new Date();
+  const lines = items.map(c =>
+    `<tr><td style="text-align:left">${c.name}</td><td style="text-align:right">${c.qty}</td><td style="text-align:right">${currency}${c.price.toFixed(2)}</td><td style="text-align:right">${currency}${(c.qty*c.price).toFixed(2)}</td></tr>`
+  ).join('');
+  let extra = '';
+  if(pay === 'Cash'){
+    extra = `<div>Cash received: ${currency}${tendered.toFixed(2)}</div><div>Change: ${currency}${change.toFixed(2)}</div>`;
+  } else if(pay === 'Special' && specialBuyer){
+    extra = `<div>Buyer: ${specialBuyer.name}</div><div>Phone: ${specialBuyer.phone}</div><div style="margin-top:6px;font-weight:700;">CREDIT SALE – pay later</div>`;
+  } else {
+    extra = `<div>Payment: ${pay}</div>`;
+  }
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Receipt</title>
+    <style>
+      body{font-family:monospace;padding:16px;max-width:320px;margin:0 auto;color:#000;background:#fff;}
+      h2{margin:0 0 4px;font-size:16px;text-align:center;}
+      .meta{font-size:11px;text-align:center;color:#444;margin-bottom:12px;}
+      table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:10px;}
+      th{border-bottom:1px solid #000;text-align:left;padding:4px 0;}
+      th:nth-child(n+2),td:nth-child(n+2){text-align:right;}
+      td{padding:3px 0;}
+      .total{font-size:15px;font-weight:700;border-top:1px dashed #000;padding-top:8px;margin-top:6px;}
+      .extra{font-size:12px;margin-top:8px;}
+      .footer{margin-top:16px;font-size:10px;text-align:center;color:#666;}
+      @media print{button{display:none;}}
+    </style></head><body>
+    <h2>${shop}</h2>
+    <div class="meta">${now.toLocaleString()} · ${sellerName || ''}</div>
+    <table>
+      <thead><tr><th>Item</th><th>Qty</th><th>Price</th><th>Total</th></tr></thead>
+      <tbody>${lines}</tbody>
+    </table>
+    <div class="total">TOTAL ${currency}${total.toFixed(2)}</div>
+    <div class="extra">${extra}</div>
+    <div class="footer">Thank you · ZedTill</div>
+    <button onclick="window.print()" style="width:100%;margin-top:16px;padding:12px;font-size:14px;font-weight:700;cursor:pointer;">Print / Save as PDF</button>
+    <button onclick="window.close()" style="width:100%;margin-top:8px;padding:10px;font-size:13px;cursor:pointer;">Close</button>
+    </body></html>`;
+  const w = window.open('', '_blank', 'width=360,height=560');
+  if(w){ w.document.write(html); w.document.close(); }
+  else showToast('Pop-up blocked – allow pop-ups for receipts');
+}
+
+function renderSpecialsList(){
+  const container = document.getElementById('specialsList');
+  const open = specials.filter(s => !s.cleared).sort((a,b)=> new Date(b.time) - new Date(a.time));
+  if(open.length===0){
+    container.innerHTML = '<div class="special-empty">No outstanding specials</div>';
+    return;
+  }
+  container.innerHTML = open.map(s => {
+    const itemsList = (s.items && s.items.length)
+      ? s.items.map(it => `${it.name} x${it.qty}`).join(', ')
+      : 'Items not recorded';
+    const daysOutstanding = Math.floor((Date.now() - new Date(s.time).getTime()) / (1000*60*60*24));
+    let agingLabel, agingClass;
+    if(daysOutstanding <= 0){ agingLabel = 'Today'; agingClass = ''; }
+    else if(daysOutstanding === 1){ agingLabel = '1 day outstanding'; agingClass = ''; }
+    else { agingLabel = daysOutstanding + ' days outstanding'; agingClass = daysOutstanding >= 7 ? ' aging-overdue' : ''; }
+    return `
+    <div class="special-card">
+      <div class="info">
+        <div class="name">${s.name} <span class="aging-tag${agingClass}">${agingLabel}</span></div>
+        <div class="meta" style="margin-bottom:2px;">${itemsList}</div>
+        <div class="meta">${s.phone} · K${s.amount.toFixed(2)} · ${new Date(s.time).toLocaleString()}${s.sellerName ? ' · ' + s.sellerName : ''}</div>
+      </div>
+      <button onclick="clearSpecial('${s.id}')">Clear</button>
+    </div>`;
+  }).join('');
+}
+
+function clearSpecial(id){
+  const rec = specials.find(s => s.id === id);
+  if(!rec) return;
+
+  const paidVia = confirm(`Clearing K${rec.amount.toFixed(2)} for ${rec.name}.\n\nTap OK if they paid CASH, or Cancel if they paid Mobile Money.`);
+  rec.cleared = true;
+  rec.clearedPay = paidVia ? 'Cash' : 'Mobile Money';
+  rec.clearedDate = todayKey();
+  rec.clearedTime = new Date().toISOString();
+
+  unsyncedSpecialEvents.push({ id: rec.id, type: 'cleared', name: rec.name, amount: rec.amount, clearedPay: rec.clearedPay, clearedTime: rec.clearedTime });
+
+  saveState().then(()=>{
+    renderSpecialsList();
+    updateSpecialCountDisplay();
+    renderSummary();
+    showToast('Special cleared, ' + rec.clearedPay + ' received');
+    if(navigator.onLine) trySync(true);
+  });
+}
+
+// ---------- Refunds ----------
+function renderRefundsList(){
+  const container = document.getElementById('refundsList');
+  if(!container) return;
+  const todaysSales = sales.filter(s => !s.isRefund && s.dateKey === todayKey() && s.id);
+  if(todaysSales.length === 0){
+    container.innerHTML = '<div class="special-empty">No sales recorded today</div>';
+    return;
+  }
+  const sorted = [...todaysSales].sort((a,b)=> new Date(b.time) - new Date(a.time));
+  container.innerHTML = sorted.map(s => `
+    <div class="special-card">
+      <div class="info">
+        <div class="name">${s.name} x${s.qty}</div>
+        <div class="meta">K${s.total.toFixed(2)} · ${s.pay} · ${new Date(s.time).toLocaleTimeString()}${s.seller ? ' · ' + s.seller : ''}</div>
+      </div>
+      ${s.refunded ? '<span class="hint">Refunded</span>' : `<button onclick="refundSale('${s.id}')">Refund</button>`}
+    </div>
+  `).join('');
+}
+
+function refundSale(id){
+  const sale = sales.find(s => s.id === id);
+  if(!sale || sale.refunded) return;
+  if(!confirm(`Refund ${sale.name} x${sale.qty} for K${sale.total.toFixed(2)}?`)) return;
+
+  sale.refunded = true;
+
+  const inv = inventory.find(i => i.name === sale.name);
+  if(inv) inv.qty += sale.qty;
+
+  const refundRecord = {
+    id: Date.now().toString() + Math.random().toString(36).slice(2,7),
+    time: new Date().toISOString(),
+    dateKey: saleDateKey(),
+    name: sale.name,
+    qty: -sale.qty,
+    price: sale.price,
+    total: -sale.total,
+    pay: sale.pay,
+    dept: sale.dept,
+    seller: currentSeller ? currentSeller.name : 'Unknown',
+    isRefund: true,
+    refunded: false
+  };
+  sales.push(refundRecord);
+  unsynced.push(refundRecord);
+
+  saveState();
+  renderRefundsList();
+  renderSummary();
+  renderInventory();
+  renderQuickSelect();
+  updateUnsyncedBadge();
+  showToast('Refunded ' + sale.name + ' · K' + sale.total.toFixed(2));
+  if(navigator.onLine) trySync(true);
+}
+
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 2200);
+}
+
+// ---------- Inventory & Stock Management ----------
+function renderInventory(){
+  const body = document.getElementById('invBody');
+  body.innerHTML='';
+  inventory.forEach((i,idx)=>{
+    let stockClass = i.qty===0 ? 'out' : (i.qty<=10 ? 'low' : '');
+    const displayCodes = (i.codes && i.codes.length) ? i.codes.join(', ') : 'none';
+    const pinned = !!i.quickSelect;
+    const currentDept = i.dept || 'Other';
+    const deptOptions = departments.map(d => `<option value="${d}"${d===currentDept?' selected':''}>${d}</option>`).join('');
+    body.innerHTML += `<tr>
+      <td>${i.name}</td>
+      <td><select class="dept-move-select" onchange="moveItemDepartment(${idx}, this.value)">${deptOptions}</select></td>
+      <td style="font-family:var(--mono); font-size:12px; color:var(--sub);">
+        ${displayCodes}
+        <button class="camera-btn-small" style="margin-left:4px;" onclick="rescanForItem(${idx})">Scan</button>
+      </td>
+      <td class="num">K${i.cost.toFixed(2)}</td>
+      <td class="num">K${i.price.toFixed(2)}</td>
+      <td class="num ${stockClass}">${i.qty}</td>
+      <td>
+        <button class="edt${pinned?' pinned':''}" onclick="toggleQuickSelect(${idx})">${pinned?'Unpin':'Pin'}</button>
+        <button class="edt" onclick="openEditItem(${idx})">Edit</button>
+        <button class="edt" onclick="printItemLabel(${idx})" title="Print barcode label">Label</button>
+        ${isOwner() ? `<button class="rm" onclick="deleteItem(${idx})">X</button>` : ''}
+      </td>
+    </tr>`;
+  });
+  renderQuickSelect();
+}
+
+function moveItemDepartment(idx, newDept){
+  const item = inventory[idx];
+  if(!item || item.dept === newDept) return;
+  const oldDept = item.dept || 'Other';
+  item.dept = newDept;
+  saveState();
+  showToast(item.name + ' moved from ' + oldDept + ' to ' + newDept);
+  if(navigator.onLine) trySync(true);
+}
+
+function toggleQuickSelect(idx){
+  const item = inventory[idx];
+  item.quickSelect = !item.quickSelect;
+  saveState();
+  renderInventory();
+  showToast(item.quickSelect ? item.name + ' pinned to Quick Select' : item.name + ' unpinned');
+}
+
+function renderQuickSelect(){
+  const container = document.getElementById('quickSelectChips');
+  if(!container) return;
+  if(inventory.length === 0){
+    container.innerHTML = '<span class="quick-select-title">Add items in Inventory to see them here</span>';
+    return;
+  }
+  const pinned = inventory.filter(i => i.quickSelect);
+  const items = pinned.length ? pinned : [...inventory].slice(0, 10);
+  if(!pinned.length){
+    container.innerHTML = items.map(i => quickChipHtml_(i)).join('')
+      + '<span class="quick-select-hint">Pin items in Inventory to choose your own</span>';
+    return;
+  }
+  container.innerHTML = items.map(i => quickChipHtml_(i)).join('');
+}
+
+function quickChipHtml_(i){
+  const out = i.qty <= 0;
+  return `<span class="quick-chip${out?' out':''}" onclick="quickAdd('${i.name.replace(/'/g,"\\'")}')">${i.name} <span class="chip-stock">(${i.qty})</span></span>`;
+}
+
+function quickAdd(itemName){
+  const item = inventory.find(i => i.name === itemName);
+  if(!item){ showToast('Item not found'); return; }
+  if(item.qty <= 0){ showToast(item.name + ' is out of stock'); return; }
+  const existing = cart.find(c => c.name === item.name);
+  if(existing){ existing.qty++; } else { cart.push({name:item.name, price:item.price, qty:1}); }
+  renderCart();
+  playScanFeedback();
+  const inCart = cart.find(c=>c.name===item.name).qty;
+  showToast(item.name + ' added · ' + (item.qty - inCart) + ' left in stock');
+}
+
+function addItem(){
+  const name = document.getElementById('newName').value.trim();
+  const rawCodes = document.getElementById('newCodes').value.trim();
+  const cost = parseFloat(document.getElementById('newCost').value)||0;
+  const price = parseFloat(document.getElementById('newPrice').value)||0;
+  const qty = parseInt(document.getElementById('newQty').value)||0;
+  const dept = document.getElementById('newDept').value;
+  
+  if(!name){ showToast('Enter an item name'); return; }
+
+  const isDuplicate = inventory.some(i => i.name.toLowerCase() === name.toLowerCase());
+  if(isDuplicate){
+    showToast('"' + name + '" already exists. Use Edit on that item to change its stock instead.');
+    return;
+  }
+  
+  const codes = rawCodes ? rawCodes.split(',').map(c => c.trim()).filter(c => c.length) : [];
+  inventory.push({name, codes, cost, price, qty, dept});
+  ['newName','newCodes','newCost','newPrice','newQty'].forEach(id=>document.getElementById(id).value='');
+  renderInventory();
+  saveState();
+  showToast(name+' added');
+  if(navigator.onLine) trySync(true);
+}
+
+function openEditItem(idx){
+  const item = inventory[idx];
+  if(!item) return;
+  editItemIdx = idx;
+  document.getElementById('editItemName').value = item.name;
+  document.getElementById('editItemCost').value = item.cost;
+  document.getElementById('editItemPrice').value = item.price;
+  document.getElementById('editItemQty').value = item.qty;
+  document.getElementById('editItemOverlay').classList.add('show');
+}
+
+function closeEditItem(){
+  document.getElementById('editItemOverlay').classList.remove('show');
+  editItemIdx = null;
+}
+
+function saveEditItem(){
+  if(editItemIdx === null) return;
+  const item = inventory[editItemIdx];
+  if(!item) return;
+
+  const newName = document.getElementById('editItemName').value.trim();
+  const newCost = parseFloat(document.getElementById('editItemCost').value);
+  const newPrice = parseFloat(document.getElementById('editItemPrice').value);
+  const newQty = parseInt(document.getElementById('editItemQty').value);
+
+  if(!newName){ showToast('Item name cannot be empty'); return; }
+  const nameTaken = inventory.some((i, idx) => idx !== editItemIdx && i.name.toLowerCase() === newName.toLowerCase());
+  if(nameTaken){ showToast('Another item already has that name'); return; }
+  if(isNaN(newCost) || isNaN(newPrice) || isNaN(newQty)){ showToast('Cost, price, and quantity must be numbers'); return; }
+
+  item.name = newName;
+  item.cost = newCost;
+  item.price = newPrice;
+  item.qty = newQty;
+
+  renderInventory();
+  saveState();
+  showToast('Item updated');
+  if(navigator.onLine) trySync(true);
+  closeEditItem();
+}
+
+function deleteItem(idx){
+  if(!isOwner()){ showToast('Only the owner can delete inventory items'); return; }
+  const item = inventory[idx];
+  if(!item) return;
+  if(!confirm(`Delete "${item.name}" from inventory? This cannot be undone.`)) return;
+  inventory.splice(idx,1);
+  renderInventory();
+  saveState();
+  if(navigator.onLine) trySync(true);
+}
+
+// ---------- Barcode Label Printing ----------
+function generateUniqueBarcode(){
+  let code;
+  const used = new Set();
+  inventory.forEach(i => (i.codes || []).forEach(c => used.add(String(c).toUpperCase())));
+  do {
+    // Short, scannable Code128-friendly internal SKU: ZT + base36 time + random
+    code = 'ZT' + Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2, 5).toUpperCase();
+  } while (used.has(code));
+  return code;
+}
+
+function ensureItemBarcode(item){
+  if(!item.codes) item.codes = [];
+  if(item.codes.length > 0) return item.codes[0];
+  const code = generateUniqueBarcode();
+  item.codes.push(code);
+  return code;
+}
+
+function getShopAndCurrency(){
+  const shop = (document.getElementById('setShopName') && document.getElementById('setShopName').value.trim()) || "Josh's Shop";
+  const currency = (document.getElementById('setCurrency') && document.getElementById('setCurrency').value.trim()) || 'K';
+  return { shop, currency };
+}
+
+function buildLabelHtml(items){
+  // items: array of { name, price, code }
+  const { shop, currency } = getShopAndCurrency();
+  const labels = items.map((it, i) => `
+    <div class="label" data-idx="${i}">
+      <div class="shop">${escapeHtml(shop)}</div>
+      <div class="name">${escapeHtml(it.name)}</div>
+      <div class="price">${currency}${Number(it.price).toFixed(2)}</div>
+      <svg class="barcode" id="bc-${i}"></svg>
+      <div class="code">${escapeHtml(it.code)}</div>
+    </div>
+  `).join('');
+
+  return `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Barcode Labels – ZedTill</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 12px;
+    font-family: -apple-system, Segoe UI, Roboto, sans-serif;
+    background: #fff;
+    color: #000;
+  }
+  .toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 14px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #ccc;
+  }
+  .toolbar button {
+    padding: 10px 16px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    border: 1px solid #333;
+    border-radius: 6px;
+    background: #111;
+    color: #fff;
+  }
+  .toolbar button.secondary { background: #fff; color: #111; }
+  .toolbar .hint { font-size: 12px; color: #555; }
+  .sheet {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: flex-start;
+  }
+  .label {
+    width: 220px;
+    min-height: 120px;
+    border: 1px dashed #999;
+    border-radius: 4px;
+    padding: 8px 10px 6px;
+    text-align: center;
+    page-break-inside: avoid;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: #fff;
+  }
+  .label .shop {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #444;
+    margin-bottom: 2px;
+  }
+  .label .name {
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.2;
+    margin-bottom: 2px;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .label .price {
+    font-size: 16px;
+    font-weight: 800;
+    font-family: 'SF Mono', Consolas, monospace;
+    margin-bottom: 4px;
+  }
+  .label svg.barcode {
+    max-width: 100%;
+    height: 42px;
+  }
+  .label .code {
+    font-size: 10px;
+    font-family: 'SF Mono', Consolas, monospace;
+    letter-spacing: 0.06em;
+    margin-top: 2px;
+    color: #333;
+  }
+  @media print {
+    .toolbar { display: none !important; }
+    body { padding: 0; }
+    .label {
+      border: none;
+      border-radius: 0;
+      /* ~58mm x 40mm style label at 96dpi ≈ 220x150; keep compact */
+      width: 58mm;
+      min-height: 32mm;
+      padding: 2mm 3mm;
+    }
+    .sheet { gap: 2mm; }
+  }
+</style>
+</head>
+<body>
+  <div class="toolbar">
+    <button onclick="window.print()">Print labels</button>
+    <button class="secondary" onclick="window.close()">Close</button>
+    <span class="hint">${items.length} label${items.length === 1 ? '' : 's'} · Cut along dashed lines if printing on plain paper</span>
+  </div>
+  <div class="sheet">${labels}</div>
+  <script src="https://unpkg.com/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"><\/script>
+  <script>
+    (function(){
+      var codes = ${JSON.stringify(items.map(it => it.code))};
+      codes.forEach(function(code, i){
+        try {
+          JsBarcode('#bc-' + i, code, {
+            format: 'CODE128',
+            width: 1.6,
+            height: 40,
+            displayValue: false,
+            margin: 0,
+            background: '#ffffff',
+            lineColor: '#000000'
+          });
+        } catch(e) {
+          var el = document.getElementById('bc-' + i);
+          if(el) el.outerHTML = '<div style="font-size:11px;color:#c00;">Barcode error</div>';
+        }
+      });
+    })();
+  <\/script>
+</body>
+</html>`;
+}
+
+function escapeHtml(str){
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function openLabelPrintWindow(items){
+  if(!items || !items.length){
+    showToast('No items to print');
+    return;
+  }
+  if(typeof JsBarcode === 'undefined'){
+    showToast('Barcode library failed to load. Check your internet connection.');
+    return;
+  }
+  const html = buildLabelHtml(items);
+  const w = window.open('', '_blank', 'width=720,height=640');
+  if(!w){
+    showToast('Pop-up blocked – allow pop-ups for label printing');
+    return;
+  }
+  w.document.write(html);
+  w.document.close();
+}
+
+function printItemLabel(idx){
+  const item = inventory[idx];
+  if(!item) return;
+  const hadCode = item.codes && item.codes.length > 0;
+  const code = ensureItemBarcode(item);
+  if(!hadCode){
+    saveState().then(() => {
+      renderInventory();
+      if(navigator.onLine) trySync(true);
+    });
+    showToast('Generated barcode ' + code + ' for ' + item.name);
+  }
+  openLabelPrintWindow([{ name: item.name, price: item.price, code }]);
+}
+
+function printMissingLabels(){
+  const missing = inventory.filter(i => !i.codes || i.codes.length === 0);
+  if(missing.length === 0){
+    showToast('Every item already has a barcode');
+    return;
+  }
+  if(!confirm(`Generate barcodes and print labels for ${missing.length} item(s) that have no code?`)) return;
+
+  const payload = missing.map(item => {
+    const code = ensureItemBarcode(item);
+    return { name: item.name, price: item.price, code };
+  });
+
+  saveState().then(() => {
+    renderInventory();
+    if(navigator.onLine) trySync(true);
+  });
+  showToast('Generated ' + payload.length + ' barcode(s)');
+  openLabelPrintWindow(payload);
+}
+
+// ---------- Departments ----------
+function renderDeptOptions(){
+  const select = document.getElementById('newDept');
+  if(!select) return;
+  const current = select.value;
+  select.innerHTML = departments.map(d => `<option value="${d}">${d}</option>`).join('');
+  if(departments.includes(current)) select.value = current;
+}
+
+function renderDeptChips(){
+  const row = document.getElementById('deptChipRow');
+  if(!row) return;
+  const canRemove = isOwner();
+  row.innerHTML = departments.map(d => {
+    const locked = d === 'Other';
+    return `<span class="dept-chip${locked?' locked':''}">${d}${(!locked && canRemove) ? `<button class="dept-remove" onclick="removeDepartment('${d}')">X</button>` : ''}</span>`;
+  }).join('');
+}
+
+function addDepartment(){
+  const input = document.getElementById('newDeptName');
+  const name = input.value.trim();
+  if(!name){ showToast('Enter name'); return; }
+  if(departments.some(d => d.toLowerCase() === name.toLowerCase())){ showToast('Already exists'); return; }
+  departments.push(name);
+  input.value = '';
+  saveState();
+  renderDeptOptions();
+  renderDeptChips();
+  showToast(name + ' added');
+}
+
+function removeDepartment(name){
+  if(!isOwner()){ showToast('Only the owner can remove departments'); return; }
+  if(name === 'Other') return;
+  const affectedCount = inventory.filter(i => i.dept === name).length;
+  const warning = affectedCount > 0
+    ? `Remove "${name}"? ${affectedCount} item(s) in it will move to Other.`
+    : `Remove "${name}"?`;
+  if(!confirm(warning)) return;
+  departments = departments.filter(d => d !== name);
+  inventory.forEach(i => { if(i.dept === name) i.dept = 'Other'; });
+  saveState();
+  renderDeptOptions();
+  renderDeptChips();
+  renderInventory();
+  showToast(name + ' removed, items moved to Other');
+  if(navigator.onLine) trySync(true);
+}
+
+// ---------- Summary Logic ----------
+function recalculateOpeningStock(){
+  openingStockValue = inventory.reduce((s,i)=>s + (i.cost*i.qty), 0);
+  saveState().then(()=>{
+    renderSummary();
+    showToast('Opening stock recalculated: K' + openingStockValue.toFixed(2));
+  });
+}
+
+// Sales made on credit (Special) don't count as real revenue in daily
+// totals until the buyer actually pays. This filters `sales` for a
+// given day to: all non-Special sales from that day, plus any Special
+// sale whose linked special has since been cleared, counted on the day
+// it was actually cleared (not the day it was originally sold, since
+// that's when the money really became real).
+function getVisibleSales(dateKey){
+  return sales.filter(s => {
+    if(s.pay !== 'Special'){
+      return (s.dateKey || new Date(s.time).toDateString()) === dateKey;
+    }
+    if(!s.specialId) return false; // no link to check clearance, exclude to be safe
+    const linked = specials.find(sp => sp.id === s.specialId);
+    if(!linked || !linked.cleared) return false;
+    return linked.clearedDate === dateKey;
+  });
+}
+
+function renderSummary(){
+  const todaysSales = getVisibleSales(todayKey());
+  const salesTotal = todaysSales.reduce((s,t)=>s+t.total,0);
+  const closingValue = inventory.reduce((s,i)=>s+i.cost*i.qty,0);
+  const outstanding = specials.filter(s => !s.cleared).reduce((s,t)=>s+t.amount,0);
+  document.getElementById('sumSales').textContent = 'K'+salesTotal.toFixed(2);
+  document.getElementById('sumTx').textContent = todaysSales.length;
+  document.getElementById('sumOpen').textContent = 'K'+openingStockValue.toFixed(2);
+  document.getElementById('sumClose').textContent = 'K'+closingValue.toFixed(2);
+  document.getElementById('sumOutstanding').textContent = 'K'+outstanding.toFixed(2);
+  const floatEl = document.getElementById('sumFloat');
+  if(floatEl) floatEl.textContent = 'K'+openingCashFloat.toFixed(2);
+  const floatInput = document.getElementById('openingFloatInput');
+  if(floatInput && document.activeElement !== floatInput){
+    floatInput.value = openingCashFloat > 0 ? openingCashFloat : '';
+  }
+  const floatHint = document.getElementById('floatHint');
+  if(floatHint){
+    floatHint.textContent = openingCashFloat > 0
+      ? 'Float set for today: K' + openingCashFloat.toFixed(2)
+      : 'No opening float set yet for today — variance will treat float as K0.00 until you set it.';
+  }
+  renderDeptBreakdown(todaysSales);
+  renderHistoryList();
+  updateCloseDayUI();
+}
+
+function saveOpeningFloat(){
+  const raw = document.getElementById('openingFloatInput').value;
+  const val = parseFloat(raw);
+  if(isNaN(val) || val < 0){
+    showToast('Enter a valid opening float amount (0 or more)');
+    return;
+  }
+  openingCashFloat = val;
+  saveState().then(()=>{
+    renderSummary();
+    showToast('Opening float set to K' + openingCashFloat.toFixed(2));
+  });
+}
+
+function expectedCashInTill(){
+  const key = todayKey();
+  const todaysSales = sales.filter(s => (s.dateKey || new Date(s.time).toDateString()) === key);
+  const cashFromSales = todaysSales.filter(s => s.pay === 'Cash').reduce((s,t)=>s+t.total, 0);
+  const cashFromClearedSpecials = specials
+    .filter(s => s.cleared && s.clearedPay === 'Cash' && s.clearedDate === key)
+    .reduce((s,t)=>s+t.amount, 0);
+  return {
+    float: openingCashFloat,
+    cashFromSales,
+    cashFromClearedSpecials,
+    expected: openingCashFloat + cashFromSales + cashFromClearedSpecials
+  };
+}
+
+function updateCloseDayUI(){
+  const key = todayKey();
+  const closed = closedDays[key];
+  const btn = document.getElementById('closeDayBtn');
+  const hint = document.getElementById('closeDayHint');
+  if(!btn || !hint) return;
+  if(closed){
+    btn.disabled = true;
+    btn.textContent = 'Day Closed';
+    btn.style.opacity = '0.6';
+    const floatBit = closed.openingFloat !== undefined ? ' · Float K' + closed.openingFloat.toFixed(2) : '';
+    hint.textContent = 'Closed by ' + (closed.closedBy || '—') + ' at ' + new Date(closed.closedAt).toLocaleString() +
+      floatBit +
+      ' · Expected K' + closed.cashExpected.toFixed(2) + ' · Counted K' + closed.cashCounted.toFixed(2) +
+      ' · ' + (closed.variance === 0 ? 'Balanced' : (closed.variance > 0 ? 'Over K' + closed.variance.toFixed(2) : 'Short K' + Math.abs(closed.variance).toFixed(2)));
+  } else {
+    btn.disabled = false;
+    btn.textContent = 'Close Day';
+    btn.style.opacity = '1';
+    hint.textContent = 'Locks today\'s numbers after you confirm the cash count. Does not stop further sales.';
+  }
+}
+
+function closeDay(){
+  const key = todayKey();
+  if(closedDays[key]){ showToast('This day is already closed'); return; }
+  const counted = parseFloat(document.getElementById('cashCounted').value);
+  if(isNaN(counted)){ showToast('Enter the cash counted in the till first'); return; }
+
+  const todaysSales = getVisibleSales(key);
+  const { float, cashFromSales, cashFromClearedSpecials, expected: cashExpected } = expectedCashInTill();
+  const variance = counted - cashExpected;
+  const salesTotal = todaysSales.reduce((s,t)=>s+t.total,0);
+
+  const label = variance === 0 ? 'Balanced' : (variance > 0 ? `Over by K${variance.toFixed(2)}` : `Short by K${Math.abs(variance).toFixed(2)}`);
+  const breakdown =
+    `Float K${float.toFixed(2)} + cash sales K${cashFromSales.toFixed(2)}` +
+    (cashFromClearedSpecials > 0 ? ` + cleared specials K${cashFromClearedSpecials.toFixed(2)}` : '');
+  if(!confirm(`Close day ${key}?\n\nSales: K${salesTotal.toFixed(2)} (${todaysSales.length} tx)\nExpected cash: K${cashExpected.toFixed(2)}\n(${breakdown})\nCounted: K${counted.toFixed(2)}\n${label}\n\nThis locks the numbers for the day.`)) return;
+
+  closedDays[key] = {
+    salesTotal,
+    txCount: todaysSales.length,
+    cashExpected,
+    cashCounted: counted,
+    variance,
+    openingFloat: float,
+    closedAt: new Date().toISOString(),
+    closedBy: currentSeller ? currentSeller.name : 'Unknown'
+  };
+  saveState().then(()=>{
+    updateCloseDayUI();
+    renderHistoryList();
+    showToast('Day closed · ' + label);
+  });
+}
+
+function renderHistoryList(){
+  const container = document.getElementById('historyList');
+  if(!container) return;
+  const keys = [...new Set(sales.map(s => s.dateKey || new Date(s.time).toDateString()))]
+    .filter(k => k !== todayKey())
+    .sort((a,b) => new Date(b) - new Date(a));
+  if(keys.length === 0){
+    container.innerHTML = '<div class="special-empty">No past days recorded yet on this device</div>';
+    return;
+  }
+  container.innerHTML = keys.slice(0, 30).map(k => {
+    const daySales = getVisibleSales(k);
+    const total = daySales.reduce((s,t)=>s+t.total,0);
+    const closed = closedDays[k];
+    const closedTag = closed
+      ? `<span class="aging-tag" style="margin-left:6px;">Closed</span>`
+      : '';
+    return `<div class="special-card" style="cursor:pointer;" onclick="showPastDay('${k.replace(/'/g,"\\'")}')">
+      <div class="info">
+        <div class="name">${k}${closedTag}</div>
+        <div class="meta">K${total.toFixed(2)} · ${daySales.length} transactions</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function showPastDay(dateKey){
+  const daySales = getVisibleSales(dateKey);
+  const total = daySales.reduce((s,t)=>s+t.total,0);
+  const closed = closedDays[dateKey];
+  let detail = daySales
+    .slice()
+    .sort((a,b)=> new Date(a.time) - new Date(b.time))
+    .map(s => `${new Date(s.time).toLocaleTimeString()}  ${s.name} x${s.qty}  K${s.total.toFixed(2)}  (${s.pay})${s.isRefund?' [refund]':''}${s.refunded?' [refunded]':''}`)
+    .join('\n');
+  if(!detail) detail = '(no line items)';
+  let closedInfo = '';
+  if(closed){
+    const floatPart = closed.openingFloat !== undefined ? ` · Float K${closed.openingFloat.toFixed(2)}` : '';
+    closedInfo = `\n\nClosed by ${closed.closedBy} at ${new Date(closed.closedAt).toLocaleString()}\nExpected cash K${closed.cashExpected.toFixed(2)}${floatPart} · Counted K${closed.cashCounted.toFixed(2)} · Variance K${closed.variance.toFixed(2)}`;
+  }
+  alert(`${dateKey}\nSales: K${total.toFixed(2)} (${daySales.length} tx)${closedInfo}\n\n${detail}`);
+}
+
+function renderDeptBreakdown(todaysSales){
+  const container = document.getElementById('deptBreakdown');
+  if(!container) return;
+  const byDept = {};
+  todaysSales.forEach(s=>{
+    const dept = s.dept || 'Other';
+    if(!byDept[dept]) byDept[dept] = {total:0, count:0};
+    byDept[dept].total += s.total;
+    byDept[dept].count += s.qty;
+  });
+  // Show every department, even ones with no sales today, since stock
+  // value still exists for them and they're still tappable for detail.
+  departments.forEach(d => { if(!byDept[d]) byDept[d] = {total:0, count:0}; });
+
+  const depts = Object.keys(byDept).sort((a,b)=> byDept[b].total - byDept[a].total);
+  if(depts.length===0){
+    container.innerHTML = '<div class="special-empty">No departments set up yet</div>';
+    return;
+  }
+  const grandTotal = depts.reduce((s,d)=>s+byDept[d].total, 0);
+  container.innerHTML = depts.map(d=>{
+    const pct = grandTotal>0 ? (byDept[d].total/grandTotal*100).toFixed(0) : 0;
+    return `
+    <div class="dept-row" onclick="openDeptDetail('${d.replace(/'/g,"\\'")}')" style="cursor:pointer;">
+      <div class="dept-label">${d}</div>
+      <div class="dept-bar-track"><div class="dept-bar-fill" style="width:${pct}%"></div></div>
+      <div class="dept-vals">K${byDept[d].total.toFixed(2)} <span class="dept-pct">${pct}%</span></div>
+    </div>`;
+  }).join('');
+}
+
+function checkVariance(){
+  const counted = parseFloat(document.getElementById('cashCounted').value);
+  const el = document.getElementById('varianceResult');
+  if(isNaN(counted)){ el.innerHTML=''; return; }
+
+  // Real POS math: float + cash sales + cash from cleared specials = expected in till
+  const { float, cashFromSales, cashFromClearedSpecials, expected } = expectedCashInTill();
+  const diff = counted - expected;
+  const cls = Math.abs(diff) < 1 ? 'ok' : 'bad';
+  const label = diff === 0 ? 'Balanced' : (diff > 0 ? `Over by K${diff.toFixed(2)}` : `Short by K${Math.abs(diff).toFixed(2)}`);
+
+  const parts = [
+    `Float K${float.toFixed(2)}`,
+    `cash sales K${cashFromSales.toFixed(2)}`
+  ];
+  if(cashFromClearedSpecials > 0) parts.push(`cleared specials K${cashFromClearedSpecials.toFixed(2)}`);
+  const breakdown = parts.join(' + ');
+
+  el.innerHTML = `<div class="variance ${cls}">Expected K${expected.toFixed(2)} (${breakdown}) · Counted K${counted.toFixed(2)} → ${label}</div>`;
+}
+
+init();
+updateNetStatus();
+
+// Registers sw.js so the app (including camera scanning and Excel
+// export) keeps working with no internet after the first successful
+// load. sw.js must be uploaded alongside this file at the same location.
+// Wrapped in try/catch because sandboxed previews (and some browsers)
+// throw SecurityError when even reading navigator.serviceWorker.
+try {
+  if('serviceWorker' in navigator){
+    window.addEventListener('load', () => {
+      try {
+        navigator.serviceWorker.register('sw.js').catch(()=>{});
+      } catch(e){}
+    });
+  }
+} catch(e){}
+
+</script>
+</body>
+</html>
